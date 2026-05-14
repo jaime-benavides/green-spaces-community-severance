@@ -1,0 +1,37 @@
+# Data (proprietary or too large for GitHub)
+data/
+output/
+OSMtrees.gpkg
+
+# Manuscript compiled outputs and template extras
+manuscript/sn-article.pdf
+manuscript/user-manual.pdf
+manuscript/fig.eps
+manuscript/empty.eps
+manuscript/refs/
+manuscript/*.html
+
+# LaTeX auxiliary files
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.pdf~
+
+# R session/cache
+.Rhistory
+.RData
+.Rproj.user/
+Rplots.pdf
+
+# HTML outputs from R/knitr
+*.html
+
+# OS
+.DS_Store
