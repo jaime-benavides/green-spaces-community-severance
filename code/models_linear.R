@@ -14,7 +14,7 @@ crs <- 2163
 # community severance
 nyc_csi <- readRDS(paste0(generated.data.folder, "community_severance_nyc_census_tract.rds"))
 la_csi <- readRDS(paste0(generated.data.folder, "community_severance_la_census_tract.rds"))
-la_csi$GEOID <- sub('.', '', la_csi$GEOID)
+la_csi$GEOID <- substring(la_csi$GEOID, 2)
 
 path_demography <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/demography/us/"
 neigh_nyc <- sf::st_read(paste0(path_demography, "nyc/uhf42_dohmh_2009/UHF_42_DOHMH_2009.shp"))
@@ -25,11 +25,11 @@ neigh_la <- sf::st_transform(neigh_la, crs)
 # building density
 nyc_build_dens <- readRDS(paste0(generated.data.folder, "building_dens_nyc.rds"))
 la_build_dens <- readRDS(paste0(generated.data.folder, "building_dens_la.rds"))
-la_build_dens$GEOID <- sub('.', '', la_build_dens$GEOID)
+la_build_dens$GEOID <- substring(la_build_dens$GEOID, 2)
 # ses
 nyc_ses <- readRDS(paste0(generated.data.folder, "ses_ice_nyc.rds"))
 la_ses <- readRDS(paste0(generated.data.folder, "ses_ice_la.rds"))
-la_ses$GEOID <- sub('.', '', la_ses$GEOID)
+la_ses$GEOID <- substring(la_ses$GEOID, 2)
 nyc_ses_df <- nyc_ses
 sf::st_geometry(nyc_ses_df) <- NULL
 nyc_ses_df <- nyc_ses_df[,c("GEOID", "ICE_inc",  "ICE_rewb", 
@@ -40,9 +40,19 @@ la_ses_df <- la_ses_df[,c("GEOID",  "ICE_inc",  "ICE_rewb",
                           "perc.black", "perc.hisp", "perc.pov", "pop_dens")]
 
 # green spaces
+# ndvi_*_census_tract.rds are plain data.frames (geometry stripped by prep_greenspace.R).
+# Attach tract geometry from krieger_ice before the spatial operations below.
 nyc_ndvi <- readRDS(paste0(generated.data.folder, "ndvi_nyc_census_tract.rds"))
+nyc_ice_geom <- readRDS(paste0(generated.data.folder, "krieger_ice_nyc.rds")) |>
+  dplyr::select(GEOID, geometry)                          # 11-digit GEOID, matches nyc_ndvi
+nyc_ndvi <- sf::st_as_sf(dplyr::left_join(nyc_ice_geom, nyc_ndvi, by = "GEOID"))
 nyc_ndvi <- sf::st_transform(nyc_ndvi, crs)
+
 la_ndvi <- readRDS(paste0(generated.data.folder, "ndvi_la_census_tract.rds"))
+la_ice_geom <- readRDS(paste0(generated.data.folder, "krieger_ice_la.rds")) |>
+  dplyr::mutate(GEOID = substring(as.character(GEOID), 2)) |>  # strip leading 0 to match 10-digit la_ndvi GEOID
+  dplyr::select(GEOID, geometry)
+la_ndvi <- sf::st_as_sf(dplyr::left_join(la_ice_geom, la_ndvi, by = "GEOID"))
 la_ndvi <- sf::st_transform(la_ndvi, crs)
 
 # euclidean distance to green spaces
@@ -156,28 +166,30 @@ html_string <- knitr::kable(t_table_1, format = "html")
 writeLines(html_string, paste0(output.folder, "data_descriptives.html"))
 # potential outliers 
 
-# Assuming dt has columns: city, community_severance_index, lon, lat
+# City-specific CSI z-scores: mean and SD computed separately per city
 city_csi_stats <- dt %>%
-  #group_by(city) %>%
+  group_by(city) %>%
   summarise(
     mean_csi = mean(community_severance_index, na.rm = TRUE),
     sd_csi   = sd(community_severance_index, na.rm = TRUE),
     .groups = "drop"
   )
 
-# Join back to original data to compute z-scores and flag outliers
 dt <- dt %>%
+  left_join(city_csi_stats, by = "city") %>%
   mutate(
-    z_csi = (community_severance_index - city_csi_stats$mean_csi) / city_csi_stats$sd_csi,
+    z_csi        = (community_severance_index - mean_csi) / sd_csi,
     outlier_flag = ifelse(abs(z_csi) > 2, "Outlier (|z|>2)", "Within ±2 SD")
-  )
+  ) %>%
+  dplyr::select(-mean_csi, -sd_csi)
 
 
 dt <- dt |>
+  dplyr::group_by(city) |>
   dplyr::mutate(
     dplyr::across(
       .cols = c(ICE_inc, ICE_rewb),
-      .fns = ~ dplyr::ntile(., 5) |> 
+      .fns = ~ dplyr::ntile(., 5) |>
         factor(
           levels = 1:5,
           labels = c("Q1 (Most Disadvantaged)",
@@ -188,7 +200,8 @@ dt <- dt |>
         ),
       .names = "{.col}_quintile"
     )
-  )
+  ) |>
+  dplyr::ungroup()
 
 # Convert all *_group variables to ordered factors
 group_vars <- grep("_quintile$", names(dt), value = TRUE)
@@ -236,7 +249,7 @@ model_list_ndvi <- list(
   
   # sens anal no outliers
   #fits_outl     = fit_by(dt[which(dt$outlier_flag != "Outlier (|z|>2)"), ], family_type = "linear", by = "none", model_fun =  model_gam_mixed_ndvi),
-  fits_outl_city     = fit_by(dt[which(dt$outlier_flag != "Outlier (|z|>2)"), ], crude = TRUE, by = "city", family_type = "linear", model_fun =  model_gam_mixed_ndvi),
+  fits_outl_city     = fit_by(dt[which(dt$outlier_flag != "Outlier (|z|>2)"), ], by = "city", family_type = "linear", model_fun =  model_gam_mixed_ndvi),
   # ICE quintile (categorical) models
   #fits_ice_quint = setNames(
   #  lapply(ice_quint_vars, function(v)
@@ -285,6 +298,11 @@ model_list_ndvi <- list(
     ice_cont_vars = ice_cont_vars       # continuous ICE
   )
 )
+
+saveRDS(model_list_ndvi$fits_city,
+        paste0(generated.data.folder, "ndvi_model_objects_city_adjusted_linear.rds"))
+saveRDS(model_list_ndvi$fits_city_crude,
+        paste0(generated.data.folder, "ndvi_model_objects_city_crude_linear.rds"))
 
 # get numbers
 bind_rows(
@@ -513,7 +531,7 @@ model_list_greenspace <- list(
   
   # sens anal no outliers
 
-  fits_outl_city     = fit_by(dt[which(dt$outlier_flag != "Outlier (|z|>2)"), ], by = "city", crude = TRUE, model_fun = model_gam_mixed_greenspace,family_type = "gamma",
+  fits_outl_city     = fit_by(dt[which(dt$outlier_flag != "Outlier (|z|>2)"), ], by = "city", model_fun = model_gam_mixed_greenspace, family_type = "gamma",
                               include_city = FALSE)
   
   # # ICE quintile (categorical) models
@@ -607,6 +625,11 @@ model_list_greenspace <- list(
   #   family_type = "linear"
   # )
 )
+
+saveRDS(model_list_greenspace$fits_city,
+        paste0(generated.data.folder, "greenspace_model_objects_city_adjusted_linear.rds"))
+saveRDS(model_list_greenspace$fits_city_crude,
+        paste0(generated.data.folder, "greenspace_model_objects_city_crude_linear.rds"))
 
 # get numbers
 bind_rows(

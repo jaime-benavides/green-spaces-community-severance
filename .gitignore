@@ -3,13 +3,15 @@ data/
 output/
 OSMtrees.gpkg
 
-# Manuscript compiled outputs and template extras
-manuscript/sn-article.pdf
-manuscript/user-manual.pdf
-manuscript/fig.eps
-manuscript/empty.eps
-manuscript/refs/
-manuscript/*.html
+# Manuscript (not included in repo)
+manuscript/
+
+# Internal project documentation
+CODE_REVIEW.md
+PROJECT_STATUS.md
+.claude/
+contrast/
+other_analysis/
 
 # LaTeX auxiliary files
 *.aux

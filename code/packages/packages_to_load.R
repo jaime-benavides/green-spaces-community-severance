@@ -14,7 +14,7 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if (length(new.packages)) {
   default_lib <- .libPaths()[1]
   if (file.access(default_lib, 2) == 0) {
-    install.packages(new.packages)
+    install.packages(new.packages, repos = "https://cloud.r-project.org")
   } else {
     warning(
       paste0(

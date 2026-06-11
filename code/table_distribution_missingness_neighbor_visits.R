@@ -85,9 +85,9 @@ latex_lines <- c(
   "\\label{tab:dist_missing_neighbor}",
   "\\resizebox{\\textwidth}{!}{",
   "\\begin{tabular}{lrrrrrrrrrr}",
-  "\\hline",
+  "\\toprule",
   "Variable & Non-missing & Missing & Missing \\% & Mean & SD & Median & P25 & P75 & Min & Max \\\\",
-  "\\hline"
+  "\\midrule"
 )
 
 body_lines <- apply(summary_table, 1, function(row) {
@@ -109,7 +109,7 @@ body_lines <- apply(summary_table, 1, function(row) {
 latex_lines <- c(
   latex_lines,
   body_lines,
-  "\\hline",
+  "\\bottomrule",
   "\\end{tabular}",
   "}",
   "\\end{table}"

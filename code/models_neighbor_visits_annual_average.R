@@ -153,6 +153,51 @@ model_list_neighbor_visit_share <- list(
 )
 names(model_list_neighbor_visit_share$fits_city) <- paste0("fit_city_", tolower(names(model_list_neighbor_visit_share$fits_city)))
 
+# -----------------------------------------------------------------------
+# ICE Q1/Q5 income-stratified models (neighboring-home count, primary offset)
+# Q1 = most disadvantaged; Q5 = most advantaged
+# -----------------------------------------------------------------------
+
+dt_nh_q1 <- dt_primary[dt_primary$ICE_inc_quintile == "Q1 (Most Disadvantaged)", ]
+dt_nh_q5 <- dt_primary[dt_primary$ICE_inc_quintile == "Q5 (Most Advantaged)", ]
+
+fits_nh_ice_q1 <- lapply(
+  split(dt_nh_q1, droplevels(dt_nh_q1$city)),
+  function(x) model_gam_mixed_neighbor_visits(
+    x,
+    outcome_var = "neighbor_visit_count_annual_avg",
+    family_type = "nb",
+    offset_var  = "home_device_counts_total_parsed_annual_avg"
+  )
+)
+names(fits_nh_ice_q1) <- paste0("fit_city_", tolower(names(fits_nh_ice_q1)))
+
+fits_nh_ice_q5 <- lapply(
+  split(dt_nh_q5, droplevels(dt_nh_q5$city)),
+  function(x) model_gam_mixed_neighbor_visits(
+    x,
+    outcome_var = "neighbor_visit_count_annual_avg",
+    family_type = "nb",
+    offset_var  = "home_device_counts_total_parsed_annual_avg"
+  )
+)
+names(fits_nh_ice_q5) <- paste0("fit_city_", tolower(names(fits_nh_ice_q5)))
+
+plot_nh_ice_q1 <- plot_smooth_gam(fits_nh_ice_q1, y_limits = NULL, rug = TRUE)
+plot_nh_ice_q5 <- plot_smooth_gam(fits_nh_ice_q5, y_limits = NULL, rug = TRUE)
+
+all_nh_ice_plots <- c(plot_nh_ice_q1, plot_nh_ice_q5)
+if (length(all_nh_ice_plots) > 0) {
+  png(paste0(output.folder, "models_result_neighbor_visit_q1_q5_ICE_inc_", output_label, ".png"), 1100, 500)
+  print(patchwork::wrap_plots(all_nh_ice_plots))
+  dev.off()
+}
+
+saveRDS(
+  list(q1 = fits_nh_ice_q1, q5 = fits_nh_ice_q5),
+  paste0(generated.data.folder, "neighbor_visit_ice_q1_q5_fit_", output_label, ".rds")
+)
+
 saveRDS(
   list(
     primary = model_list_neighbor_visit_primary,

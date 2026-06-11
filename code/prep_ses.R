@@ -74,7 +74,7 @@ la_ice  <- compute_krieger_ice(state = "CA", county = "Los Angeles", year = year
 
 # add ses covariates
 
-# read ses data from 2010-2014 5-year ACS
+# read ses data from 2015-2019 5-year ACS
 acs.dt <- tidycensus::get_acs(geography = "tract", state = c("NY", "CA"), variables = c("B01003_001", "B02001_003", "B03003_003", "B17001_002"), 
                               geometry = TRUE, year = 2019) 
 

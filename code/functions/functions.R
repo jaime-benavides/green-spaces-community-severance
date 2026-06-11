@@ -1393,7 +1393,21 @@ plot_smooth_gam <- function(model_list,
                             fill_color = "forestgreen",
                             rug = TRUE,
                             y_limits = NULL) {
-  
+
+  # --- City name lookup (from model list name → display label) ---
+  city_label_map <- c(
+    nyc = "New York City",
+    la  = "Los Angeles"
+  )
+
+  # --- Response variable → y-axis label ---
+  response_label_map <- c(
+    neighbor_visit_count_annual_avg = "Neighboring-home visit rate (annual average)",
+    neighbor_visit_share_annual_avg = "Neighboring-home visit share (annual average)",
+    NDVI                            = "NDVI",
+    closest_greenspace              = "Distance to nearest green space (m)"
+  )
+
   # --- Helper: flatten nested lists of GAMs ---
   flatten_gams <- function(x, parent_name = NULL) {
     if (inherits(x, "gam")) {
@@ -1405,29 +1419,39 @@ plot_smooth_gam <- function(model_list,
       return(purrr::flatten(out))
     } else list()
   }
-  
+
   flat_models <- flatten_gams(model_list)
   if (length(flat_models) == 0) {
-    warning("⚠️ No valid GAMs found.")
+    warning("No valid GAMs found.")
     return(list())
   }
-  
+
   # --- Function to plot one model’s smooth ---
   plot_one <- function(m, name) {
     tryCatch({
-      clean_title <- stringr::str_remove(name, "^fit_")
-      
+
+      # City title: detect nyc/la in model name
+      name_lower <- tolower(name)
+      if (grepl("nyc", name_lower)) {
+        city_title <- "New York City"
+      } else if (grepl("\\bla\\b|_la$|_la_", name_lower)) {
+        city_title <- "Los Angeles"
+      } else {
+        city_title <- stringr::str_remove_all(name, "^fit_(city_)?")
+      }
+
       # Extract smooth estimates
       sm <- gratia::smooth_estimates(m, smooth = smooth_term) |>
         gratia::add_confint()
-      
-      # Identify family
+
+      # Identify family and link
       fam_name <- m$family$family
       linkfun  <- m$family$linkinv
-      response_var <- as.character(formula(m))[2]  # get response variable name
-      
-      # Compute smooth on response scale
-      if (grepl("Beta|Gamma|gaussian|Negative Binomial|poisson", fam_name, ignore.case = TRUE)) {
+      response_var <- as.character(formula(m))[2]
+
+      # Transform to response scale
+      if (grepl("Beta|Gamma|gaussian|Negative Binomial|poisson", fam_name,
+                ignore.case = TRUE)) {
         sm <- sm |>
           dplyr::mutate(
             est   = linkfun(.estimate),
@@ -1435,40 +1459,40 @@ plot_smooth_gam <- function(model_list,
             upper = linkfun(.upper_ci)
           )
       }
-      
-      # Y-axis label
-      y_label <- paste0("Effect of CSI on ", response_var)
-      
-      # Default zero baseline
-      baseline <- 0
-      if (grepl("Gamma|Negative Binomial|poisson", fam_name, ignore.case = TRUE)) {
-      baseline <- 1 
+
+      # Y-axis label: clean name or mapped label
+      y_label <- if (response_var %in% names(response_label_map)) {
+        response_label_map[[response_var]]
+      } else {
+        response_var
       }
-      default_ylim <- range(c(sm$lower, sm$upper), na.rm = TRUE)
-      
-      # Plot smooth
+
+      # Null/baseline line
+      baseline <- if (grepl("Gamma|Negative Binomial|poisson", fam_name,
+                            ignore.case = TRUE)) 1 else 0
+
+      # Build plot
       p <- ggplot(sm, aes(x = community_severance_index, y = est)) +
         geom_ribbon(aes(ymin = lower, ymax = upper),
                     alpha = ci_alpha, fill = fill_color) +
-        geom_line(color = line_color, linewidth = 1.25) +
+        geom_line(color = line_color, linewidth = 1.5) +
         geom_hline(yintercept = baseline,
                    linetype = "dashed", color = "grey40", linewidth = 0.9) +
         labs(
-          y = y_label,
-          x = "Community Severance Index",
-          title = clean_title
+          y     = y_label,
+          x     = "Community Severance Index",
+          title = city_title
         ) +
-        theme_bw() +
+        theme_bw(base_size = 20) +
         theme(
-          plot.title = element_text(size = 14, face = "bold"),
-          axis.title = element_text(size = 13),
-          axis.text = element_text(size = 11)
+          plot.title   = element_text(size = 24, face = "bold", hjust = 0.5),
+          axis.title   = element_text(size = 20),
+          axis.text    = element_text(size = 18),
+          plot.margin  = margin(8, 12, 8, 8)
         )
-      
-      # Apply limits
+
       if (!is.null(y_limits)) p <- p + coord_cartesian(ylim = y_limits)
-      
-      # Rug
+
       if (rug && !is.null(m$model$community_severance_index)) {
         p <- p +
           geom_rug(
@@ -1476,20 +1500,133 @@ plot_smooth_gam <- function(model_list,
             aes(x = community_severance_index),
             sides = "b",
             alpha = 0.35,
-            length = grid::unit(0.05, "npc"),
+            length = grid::unit(0.04, "npc"),
             inherit.aes = FALSE
           )
       }
-      
+
       return(p)
     },
     error = function(e) {
-      message("⚠️ Could not plot model '", name, "': ", e$message)
+      message("Could not plot model ‘", name, "’: ", e$message)
       NULL
     })
   }
-  
+
   purrr::compact(purrr::imap(flat_models, plot_one))
+}
+
+# Plot Q1 vs Q5 ICE overlay: one panel per city, Q1=red, Q5=blue
+# fits_q1, fits_q5: named lists keyed by "fit_city_nyc" / "fit_city_la"
+plot_ice_overlay <- function(fits_q1, fits_q5,
+                             smooth_term = "s(community_severance_index)",
+                             rug = TRUE) {
+
+  city_label_map <- c(nyc = "New York City", la = "Los Angeles")
+  response_label_map <- c(
+    neighbor_visit_count_annual_avg = "Neighboring-home visit rate (annual average)",
+    neighbor_visit_share_annual_avg = "Neighboring-home visit share (annual average)",
+    NDVI                            = "NDVI",
+    closest_greenspace              = "Distance to nearest green space (m)"
+  )
+
+  cities <- intersect(names(fits_q1), names(fits_q5))
+
+  plots <- lapply(cities, function(city_key) {
+    mod_q1 <- fits_q1[[city_key]]
+    mod_q5 <- fits_q5[[city_key]]
+
+    tryCatch({
+      sm_q1 <- gratia::smooth_estimates(mod_q1, smooth = smooth_term) |>
+        gratia::add_confint()
+      sm_q5 <- gratia::smooth_estimates(mod_q5, smooth = smooth_term) |>
+        gratia::add_confint()
+
+      fam_name <- mod_q1$family$family
+      linkinv  <- mod_q1$family$linkinv
+      response_var <- as.character(formula(mod_q1))[2]
+
+      intercept_q1 <- coef(mod_q1)[1]
+      intercept_q5 <- coef(mod_q5)[1]
+
+      transform <- function(x, intercept) {
+        if (grepl("gaussian", fam_name, ignore.case = TRUE)) {
+          x + intercept
+        } else {
+          linkinv(x + intercept)
+        }
+      }
+
+      sm_q1 <- sm_q1 |> dplyr::mutate(
+        est   = transform(.estimate, intercept_q1),
+        lower = transform(.lower_ci, intercept_q1),
+        upper = transform(.upper_ci, intercept_q1),
+        group = "Q1 (Most Disadvantaged)"
+      )
+      sm_q5 <- sm_q5 |> dplyr::mutate(
+        est   = transform(.estimate, intercept_q5),
+        lower = transform(.lower_ci, intercept_q5),
+        upper = transform(.upper_ci, intercept_q5),
+        group = "Q5 (Most Advantaged)"
+      )
+      sm <- dplyr::bind_rows(sm_q1, sm_q5)
+
+      city_short <- sub("fit_city_", "", city_key)
+      city_title <- if (city_short %in% names(city_label_map)) {
+        city_label_map[[city_short]]
+      } else city_short
+
+      y_label <- if (response_var %in% names(response_label_map)) {
+        response_label_map[[response_var]]
+      } else response_var
+
+      palette <- c("Q1 (Most Disadvantaged)" = "#c0392b",
+                   "Q5 (Most Advantaged)"    = "#2980b9")
+
+      p <- ggplot(sm, aes(x = community_severance_index, y = est,
+                          color = group, fill = group)) +
+        geom_ribbon(aes(ymin = lower, ymax = upper),
+                    alpha = 0.15, color = NA) +
+        geom_line(linewidth = 1.5) +
+        scale_color_manual(values = palette, name = NULL) +
+        scale_fill_manual(values  = palette, name = NULL) +
+        labs(
+          x     = "Community Severance Index",
+          y     = y_label,
+          title = city_title
+        ) +
+        theme_bw(base_size = 20) +
+        theme(
+          plot.title    = element_text(size = 24, face = "bold", hjust = 0.5),
+          axis.title    = element_text(size = 20),
+          axis.text     = element_text(size = 18),
+          legend.position = "top",
+          legend.text   = element_text(size = 16),
+          plot.margin   = margin(8, 12, 8, 8)
+        )
+
+      if (rug) {
+        rug_data <- dplyr::bind_rows(
+          dplyr::mutate(mod_q1$model, group = "Q1 (Most Disadvantaged)"),
+          dplyr::mutate(mod_q5$model, group = "Q5 (Most Advantaged)")
+        )
+        p <- p + geom_rug(
+          data = rug_data,
+          aes(x = community_severance_index, color = group),
+          sides = "b", alpha = 0.3,
+          length = grid::unit(0.04, "npc"),
+          inherit.aes = FALSE
+        )
+      }
+      p
+    }, error = function(e) {
+      message("Could not plot city '", city_key, "': ", e$message)
+      NULL
+    })
+  })
+
+  names(plots) <- cities
+  purrr::compact(plots)
 }
 
 
