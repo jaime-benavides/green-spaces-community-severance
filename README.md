@@ -42,10 +42,13 @@ Steps 1–6 require external data. Steps 7 onwards can be run using pre-generate
 | 7b | `code/generate_nh_ice_q1_q5_figure.R` | NH ICE Q1/Q5 stratified figure |
 | 7c | `code/generate_linear_ice_outl_figures.R` | NDVI/proximity ICE Q1/Q5 and outlier-excluded figures |
 | 7d | `code/generate_figure1_maps.R` | Figure 1 and supplementary spatial maps |
+| 7e | `code/regenerate_manuscript_figures.R` | Regenerates all manuscript smooth figures from saved model objects (no re-fitting) |
 | 8a | `code/table1_outcome_descriptives_neighbor_visits.R` | Descriptive tables |
-| 8b | `code/generate_supp_table_nh_missingness.R` | Supplementary Table S1 |
-| 8c | `code/extract_numeric_results.R` | Per-IQR effect estimates |
+| 8b2 | `code/generate_supp_table_nh_missingness.R` | Supplementary Table S1 |
+| 8c | `code/extract_numeric_results.R` | Q25-to-Q75 quartile contrasts — source of Table S2 and Results-text numbers |
 | 8d | `code/generate_nh_distribution_figure.R` | NH visits distribution figure |
+
+See `CODE_REVIEW.md` for the full reproduction guide, including diagnostic-only scripts not part of the manuscript pipeline (`inspect_nh_missingness.R`, `diagnose_nh_missing_cbgs.R`, `map_uncovered_cbgs_nh.R`).
 
 Steps 6 and 7 can be run together:
 

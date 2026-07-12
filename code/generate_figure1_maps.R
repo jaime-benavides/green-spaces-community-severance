@@ -91,13 +91,23 @@ sf_nyc_ice <- sf_nyc |> dplyr::filter(!is.na(ice_q1q5))
 sf_la_ice  <- sf_la  |> dplyr::filter(!is.na(ice_q1q5))
 
 # ── Map helper functions ───────────────────────────────────────────────────────
+# Legends are placed OUTSIDE the map frame (to the right of each panel) so
+# they never overlap the tract polygons; panels carry a small a/b/c... label
+# in the top-left corner instead of a full descriptive title (kept out of the
+# map area too, via tm_pos_out, to avoid ever sitting on top of data).
+# Note: tm_legend(orientation = "landscape") with tm_pos_out(..., "bottom")
+# throws an internal tmap 4.1 grid error for 10-item legends; the vertical
+# outside-right legend below is a stable equivalent.
 make_panel <- function(sf_data, var, palette, city_title,
                        show_legend = TRUE, legend_title = "",
-                       reverse = FALSE, panel_title = "") {
+                       reverse = FALSE, panel_label = "") {
   pal <- if (reverse) paste0("-", palette) else palette
   leg <- if (show_legend) {
-    tm_legend(title = legend_title, position = tm_pos_in("right", "center"),
-              frame = FALSE, bg.color = "white", bg.alpha = 0.7)
+    tm_legend(title = legend_title,
+              position = tm_pos_out("right", "center"),
+              frame = FALSE,
+              item.height = 0.5, item.width = 0.5,
+              text.size = 0.55, title.size = 0.65)
   } else {
     tm_legend(show = FALSE)
   }
@@ -118,9 +128,9 @@ make_panel <- function(sf_data, var, palette, city_title,
       frame        = FALSE,
       bg.color     = "white",
       inner.margins = 0.02,
-      title        = panel_title,
-      title.position = tm_pos_in("center", "top"),
-      title.size   = 1.1,
+      title        = panel_label,
+      title.position = tm_pos_in("left", "top"),
+      title.size   = 1.3,
       title.fontface = "bold"
     )
 }
@@ -129,8 +139,11 @@ make_panel <- function(sf_data, var, palette, city_title,
 make_panel_cat <- function(sf_data, var, palette_vals, cat_labels, city_title,
                            show_legend = TRUE, legend_title = "") {
   leg <- if (show_legend) {
-    tm_legend(title = legend_title, position = tm_pos_in("right", "center"),
-              frame = FALSE, bg.color = "white", bg.alpha = 0.7)
+    tm_legend(title = legend_title,
+              position = tm_pos_out("right", "center"),
+              frame = FALSE,
+              item.height = 0.55, item.width = 0.55,
+              text.size = 0.6, title.size = 0.7)
   } else {
     tm_legend(show = FALSE)
   }
@@ -164,34 +177,35 @@ save_tmap <- function(tmap_obj, path, width = 3000, height = 1400) {
 # ── FIGURE 1: two rows (LA, NYC), each with 4 maps (NH, NDVI, proximity, CSI) ──
 message("Building Figure 1 composite map (2 rows: LA, NYC; 4 columns: NH, NDVI, proximity, CSI)...")
 
-# Top row (LA) carries the column headers; bottom row (NYC) repeats no titles,
-# so the four map-type captions are shared between both city rows.
+# Panels are labeled a-h (LA row = a-d, NYC row = e-h) instead of carrying full
+# descriptive titles; the mapping is spelled out in the figure caption.
 p_nh_la  <- make_panel(sf_la_nh,  "neighbor_visit_count_annual_avg",
                         "Greens", "Los Angeles", show_legend = TRUE,
-                        legend_title = "NH visits", panel_title = "Neighboring-home visits")
+                        legend_title = "NH visits", panel_label = "a")
 p_ndvi_la  <- make_panel(sf_la,  "NDVI",
                           "YlGn", "Los Angeles", show_legend = TRUE,
-                          legend_title = "NDVI", panel_title = "NDVI")
+                          legend_title = "NDVI", panel_label = "b")
 p_prox_la  <- make_panel(sf_la,  "closest_greenspace",
                           "Blues", "Los Angeles", show_legend = TRUE,
                           legend_title = "Distance to\ngreen space (m)",
-                          panel_title = "Distance to nearest\ngreen space")
+                          panel_label = "c")
 p_csi_la <- make_panel(sf_la, "community_severance_index",
                          "Reds", "Los Angeles", show_legend = TRUE,
-                         legend_title = "CSI", panel_title = "Community\nSeverance Index")
+                         legend_title = "CSI", panel_label = "d")
 
 p_nh_nyc <- make_panel(sf_nyc_nh, "neighbor_visit_count_annual_avg",
                         "Greens", "New York City", show_legend = TRUE,
-                        legend_title = "NH visits")
+                        legend_title = "NH visits", panel_label = "e")
 p_ndvi_nyc <- make_panel(sf_nyc, "NDVI",
                           "YlGn", "New York City", show_legend = TRUE,
-                          legend_title = "NDVI")
+                          legend_title = "NDVI", panel_label = "f")
 p_prox_nyc <- make_panel(sf_nyc, "closest_greenspace",
                           "Blues", "New York City", show_legend = TRUE,
-                          legend_title = "Distance to\ngreen space (m)")
+                          legend_title = "Distance to\ngreen space (m)",
+                          panel_label = "g")
 p_csi_nyc <- make_panel(sf_nyc, "community_severance_index",
                          "Reds", "New York City", show_legend = TRUE,
-                         legend_title = "CSI")
+                         legend_title = "CSI", panel_label = "h")
 
 fig1 <- tmap_arrange(
   p_nh_la,  p_ndvi_la,  p_prox_la,  p_csi_la,
