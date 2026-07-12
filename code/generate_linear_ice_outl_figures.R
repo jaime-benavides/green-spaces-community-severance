@@ -54,12 +54,12 @@ dt <- dt |>
 
 dt_no_outl <- dt |> filter(outlier_flag != "Outlier")
 
-# ---- ICE Q1/Q5: NDVI (Fig 6) ----
-message("Fitting NDVI ICE Q1/Q5 city models...")
-dt_ndvi_q1 <- dt |> filter(ICE_inc_quintile == "Q1 (Most Disadvantaged)",
-                             !is.na(NDVI))
-dt_ndvi_q5 <- dt |> filter(ICE_inc_quintile == "Q5 (Most Advantaged)",
-                             !is.na(NDVI))
+# ---- ICE Q1/Q5: NDVI (Fig S7) — outlier-excluded within each stratum ----
+message("Fitting NDVI ICE Q1/Q5 city models (outlier-excluded)...")
+dt_ndvi_q1 <- dt_no_outl |> filter(ICE_inc_quintile == "Q1 (Most Disadvantaged)",
+                                     !is.na(NDVI))
+dt_ndvi_q5 <- dt_no_outl |> filter(ICE_inc_quintile == "Q5 (Most Advantaged)",
+                                     !is.na(NDVI))
 
 fits_ndvi_q1 <- lapply(
   split(dt_ndvi_q1, droplevels(dt_ndvi_q1$city)),
@@ -82,12 +82,12 @@ save_png(
   ncol = 2
 )
 
-# ---- ICE Q1/Q5: Proximity (Fig 7) ----
-message("Fitting proximity ICE Q1/Q5 city models...")
-dt_gs_q1 <- dt |> filter(ICE_inc_quintile == "Q1 (Most Disadvantaged)",
-                           !is.na(closest_greenspace))
-dt_gs_q5 <- dt |> filter(ICE_inc_quintile == "Q5 (Most Advantaged)",
-                           !is.na(closest_greenspace))
+# ---- ICE Q1/Q5: Proximity (Fig S8) — outlier-excluded within each stratum ----
+message("Fitting proximity ICE Q1/Q5 city models (outlier-excluded)...")
+dt_gs_q1 <- dt_no_outl |> filter(ICE_inc_quintile == "Q1 (Most Disadvantaged)",
+                                   !is.na(closest_greenspace))
+dt_gs_q5 <- dt_no_outl |> filter(ICE_inc_quintile == "Q5 (Most Advantaged)",
+                                   !is.na(closest_greenspace))
 
 fits_gs_q1 <- lapply(
   split(dt_gs_q1, droplevels(dt_gs_q1$city)),
@@ -191,11 +191,18 @@ saveRDS(fits_nh_outl,
         paste0(generated.data.folder,
           "neighbor_visit_outl_city_adjusted_2019_full_year.rds"))
 
-save_png(
-  plot_smooth_gam(fits_nh_outl, rug = TRUE),
+png(paste0(output.folder,
+    "models_result_neighbor_visit_annual_avg_no_outliers_2019_full_year.png"),
+  width = 1400, height = 600, type = "quartz")
+print(plot_city_comparison(fits_nh_outl, log_y = TRUE, rug = TRUE))
+dev.off()
+file.copy(
   paste0(output.folder,
-    "models_result_neighbor_visit_annual_avg_no_outliers_2019_full_year.png")
+    "models_result_neighbor_visit_annual_avg_no_outliers_2019_full_year.png"),
+  paste0(project.folder, "manuscript/figs/",
+    "models_result_neighbor_visit_annual_avg_no_outliers_2019_full_year.png"),
+  overwrite = TRUE
 )
-message("NH outlier-excluded figure saved (Fig S3c).")
+message("NH outlier-excluded figure saved and copied to manuscript/figs/ (Fig 2).")
 
 message("All ICE and outlier-excluded figures done.")

@@ -207,35 +207,25 @@ saveRDS(
   paste0(generated.data.folder, "neighbor_visit_annual_average_model_objects_", output_label, ".rds")
 )
 
-plot_primary_crude <- plot_smooth_gam(
-  model_list_neighbor_visit_primary$fits_city_crude,
-  y_limits = NULL,
-  rug = TRUE
-)
+png(paste0(output.folder,
+    "models_result_neighbor_visit_annual_avg_primary_crude_", output_label, ".png"),
+  width = 1400, height = 600)
+print(plot_city_comparison(
+  model_list_neighbor_visit_primary$fits_city_crude, log_y = TRUE, rug = TRUE))
+dev.off()
 
-plot_primary_adjusted <- plot_smooth_gam(
-  model_list_neighbor_visit_primary$fits_city,
-  y_limits = NULL,
-  rug = TRUE
-)
+png(paste0(output.folder,
+    "models_result_neighbor_visit_annual_avg_primary_adjusted_", output_label, ".png"),
+  width = 1400, height = 600)
+print(plot_city_comparison(
+  model_list_neighbor_visit_primary$fits_city, log_y = TRUE, rug = TRUE))
+dev.off()
 
 plot_share_adjusted <- plot_smooth_gam(
   model_list_neighbor_visit_share$fits_city,
   y_limits = c(0, 1),
   rug = TRUE
 )
-
-if (length(plot_primary_crude) > 0) {
-  png(paste0(output.folder, "models_result_neighbor_visit_annual_avg_primary_crude_", output_label, ".png"), 1100, 500)
-  print(patchwork::wrap_plots(plot_primary_crude))
-  dev.off()
-}
-
-if (length(plot_primary_adjusted) > 0) {
-  png(paste0(output.folder, "models_result_neighbor_visit_annual_avg_primary_adjusted_", output_label, ".png"), 1100, 500)
-  print(patchwork::wrap_plots(plot_primary_adjusted))
-  dev.off()
-}
 
 if (length(plot_share_adjusted) > 0) {
   png(paste0(output.folder, "models_result_neighbor_visit_annual_avg_share_adjusted_", output_label, ".png"), 1100, 500)

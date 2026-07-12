@@ -1392,7 +1392,9 @@ plot_smooth_gam <- function(model_list,
                             ci_alpha = 0.2,
                             fill_color = "forestgreen",
                             rug = TRUE,
-                            y_limits = NULL) {
+                            y_limits = NULL,
+                            show_title = TRUE,
+                            log_y = FALSE) {
 
   # --- City name lookup (from model list name → display label) ---
   city_label_map <- c(
@@ -1481,7 +1483,7 @@ plot_smooth_gam <- function(model_list,
         labs(
           y     = y_label,
           x     = "Community Severance Index",
-          title = city_title
+          title = if (show_title) city_title else NULL
         ) +
         theme_bw(base_size = 20) +
         theme(
@@ -1491,6 +1493,7 @@ plot_smooth_gam <- function(model_list,
           plot.margin  = margin(8, 12, 8, 8)
         )
 
+      if (log_y) p <- p + scale_y_log10()
       if (!is.null(y_limits)) p <- p + coord_cartesian(ylim = y_limits)
 
       if (rug && !is.null(m$model$community_severance_index)) {
@@ -1516,11 +1519,53 @@ plot_smooth_gam <- function(model_list,
   purrr::compact(purrr::imap(flat_models, plot_one))
 }
 
+# Compute shared y-limits across all models in a list (response scale)
+compute_shared_ylim <- function(model_list,
+                                 smooth_term = "s(community_severance_index)",
+                                 padding = 0.05) {
+  flatten_local <- function(x, nm = NULL) {
+    if (inherits(x, "gam")) return(setNames(list(x), if (is.null(nm)) "m" else nm))
+    if (is.list(x)) return(purrr::flatten(purrr::imap(x, ~ flatten_local(.x, .y))))
+    list()
+  }
+  flat <- flatten_local(model_list)
+  vals <- unlist(lapply(flat, function(m) {
+    sm <- tryCatch(
+      gratia::smooth_estimates(m, smooth = smooth_term) |> gratia::add_confint(),
+      error = function(e) NULL
+    )
+    if (is.null(sm)) return(NULL)
+    inv <- m$family$linkinv
+    c(inv(sm$.lower_ci), inv(sm$.upper_ci))
+  }))
+  if (length(vals) == 0) return(NULL)
+  rng <- diff(range(vals, na.rm = TRUE))
+  c(min(vals, na.rm = TRUE) - padding * rng,
+    max(vals, na.rm = TRUE) + padding * rng)
+}
+
+# Assemble a two-city comparison figure: shared y-axis, no titles, right-panel y-label removed
+plot_city_comparison <- function(model_list, log_y = FALSE, rug = TRUE,
+                                  smooth_term = "s(community_severance_index)",
+                                  line_color = "#3b7036", ci_alpha = 0.2,
+                                  fill_color = "forestgreen") {
+  ylim <- compute_shared_ylim(model_list, smooth_term = smooth_term)
+  plots <- plot_smooth_gam(model_list,
+    smooth_term = smooth_term, line_color = line_color,
+    ci_alpha = ci_alpha, fill_color = fill_color,
+    rug = rug, y_limits = ylim, show_title = FALSE, log_y = log_y)
+  if (length(plots) > 1)
+    plots[[length(plots)]] <- plots[[length(plots)]] +
+      ggplot2::theme(axis.title.y = ggplot2::element_blank())
+  patchwork::wrap_plots(plots)
+}
+
 # Plot Q1 vs Q5 ICE overlay: one panel per city, Q1=red, Q5=blue
 # fits_q1, fits_q5: named lists keyed by "fit_city_nyc" / "fit_city_la"
 plot_ice_overlay <- function(fits_q1, fits_q5,
                              smooth_term = "s(community_severance_index)",
-                             rug = TRUE) {
+                             rug = TRUE,
+                             y_limits = NULL) {
 
   city_label_map <- c(nyc = "New York City", la = "Los Angeles")
   response_label_map <- c(
@@ -1604,6 +1649,8 @@ plot_ice_overlay <- function(fits_q1, fits_q5,
           legend.text   = element_text(size = 16),
           plot.margin   = margin(8, 12, 8, 8)
         )
+
+      if (!is.null(y_limits)) p <- p + coord_cartesian(ylim = y_limits)
 
       if (rug) {
         rug_data <- dplyr::bind_rows(

@@ -12,58 +12,32 @@ library(readr)
 # =============================================================================
 # extract_numeric_results.R
 #
-# Purpose: Extract per-IQR-of-CSI effect estimates from all three primary
-#          outcome models (NDVI, distance to nearest green space, neighboring-
-#          home count) for use in the results narrative of sn-article.tex.
+# Purpose: Extract quartile contrasts from the outlier-excluded primary GAMs
+#          (NDVI, distance to nearest green space, neighboring-home count) for
+#          Supplementary Table S2 of sn-article.tex.
 #
-# Method:  Inspired by main_anchored_quartile_contrasts.R in the
-#          bne_uncertainty_ses project.  For each city-specific GAM:
+# Method:  For each city-specific GAM, evaluate the s(community_severance_index)
+#          smooth at Q25, Q50, and Q75 of the city-specific (outlier-excluded)
+#          CSI distribution.  The smooth is centered at Q50 (median).
+#          Three contrasts are reported per outcome × city:
+#            beta_q25_q50 = smooth(Q50) - smooth(Q25)  [lower segment]
+#            beta_q50_q75 = smooth(Q75) - smooth(Q50)  [upper segment]
+#            beta_q25_q75 = smooth(Q75) - smooth(Q25)  [overall IQR contrast]
+#          95% CIs via delta method on the CSI-smooth vcov submatrix, exactly
+#          as in main_anchored_quartile_contrasts.R in bne_uncertainty_ses_multiyear.
 #
-#          1. extract_csi_lpblock() pulls the s(community_severance_index)
-#             columns from predict.gam(type="lpmatrix") at a vector of
-#             evaluation CSI values and at the centering value (city median).
-#          2. The contrast matrix x_mat = X_at - X_cen mirrors the
-#             crossbasis centering in the BNE project.
-#          3. compute_csi_contrast_se() computes the exact SE for any
-#             pairwise contrast between rows of x_mat via the delta method
-#             on the CSI-smooth vcov submatrix.
-#
-#          Only the s(community_severance_index) coefficient block is used;
-#          the neighborhood random effect and covariate terms are not
-#          referenced.  Effect: one IQR increase in CSI centered at the city
-#          median, covariates fixed at city-specific means.
-#
-# Effect measures:
-#   NDVI (Gaussian, identity link)   -> absolute difference (NDVI units)
-#   Proximity (Gamma, log link)      -> distance ratio; percent change
-#   NH count (NB, log link)          -> incidence rate ratio (IRR)
-#
-# Inputs (must exist in data/generated/):
-#   ndvi_model_objects_city_adjusted_linear.rds    <- models_linear.R
-#   ndvi_model_objects_city_crude_linear.rds       <- models_linear.R
-#   greenspace_model_objects_city_adjusted_linear.rds <- models_linear.R
-#   greenspace_model_objects_city_crude_linear.rds    <- models_linear.R
-#   neighbor_visit_primary_fit_city_{la,nyc}_2019_full_year.rds
-#                                         <- models_neighbor_visits_annual_average.R
-#   neighbor_visit_primary_crude_fit_city_{la,nyc}_2019_full_year.rds
-#                                         <- models_neighbor_visits_annual_average.R
-#   data_models.rds                       <- models_linear.R
-#   data_models_neighbor_visits_annual_average_2019_full_year.rds
+# Models:  Primary (outlier-excluded) adjusted models only:
+#            ndvi_outl_city_adjusted_linear.rds
+#            greenspace_outl_city_adjusted_linear.rds
+#            neighbor_visit_outl_city_adjusted_2019_full_year.rds
 #
 # Output:
-#   output/numeric_results_per_iqr_csi.csv
-#
-# Re-run whenever models_linear.R or models_neighbor_visits_annual_average.R
-# are re-fitted.
+#   output/numeric_results_quartile_contrasts.csv
 # =============================================================================
 
 
 # =============================================================================
 # Helper 1: extract s(CSI) lpmatrix block at given CSI values
-#   Analogous to build_basis_for_x() + align_basis_colnames_to_gam() in BNE.
-#   Returns a list with:
-#     $X          — matrix of CSI smooth columns, one row per csi_at value
-#     $coef_names — model coefficient names for those columns
 # =============================================================================
 
 extract_csi_lpblock <- function(model, csi_at, newdata_template) {
@@ -75,8 +49,7 @@ extract_csi_lpblock <- function(model, csi_at, newdata_template) {
 
   csi_cols <- grep("s(community_severance_index)", colnames(Xp), fixed = TRUE)
   if (length(csi_cols) == 0) {
-    stop("No s(community_severance_index) columns in lpmatrix — ",
-         "check model formula.")
+    stop("No s(community_severance_index) columns in lpmatrix — check model formula.")
   }
 
   list(
@@ -87,7 +60,7 @@ extract_csi_lpblock <- function(model, csi_at, newdata_template) {
 
 
 # =============================================================================
-# Helper 2: SE of the contrast between rows i and j of the x_mat
+# Helper 2: SE of smooth(row_i_CSI) - smooth(row_j_CSI)
 #   Direct port of compute_contrast_se() from BNE.
 # =============================================================================
 
@@ -98,30 +71,30 @@ compute_csi_contrast_se <- function(x_mat, v_csi, i, j) {
 
 
 # =============================================================================
-# Main function: per-IQR effect for one city-model combination
-#   Analogous to compute_pointwise_from_cbblock() in BNE.
+# Main function: Q25/Q50/Q75 quartile contrasts for one city-model combination
+#   Mirrors main_anchored_quartile_contrasts.R in bne_uncertainty_ses_multiyear.
+#   Smooth centered at Q50 (median); three contrasts: Q50vQ25, Q75vQ50, Q75vQ25.
 # =============================================================================
 
-compute_iqr_effect <- function(model,
-                               dt_city,
-                               outcome_label,
-                               model_spec,
-                               city_label,
-                               offset_var = NULL) {
+compute_quartile_contrasts <- function(model,
+                                       dt_city,
+                                       outcome_label,
+                                       city_label,
+                                       offset_var = NULL) {
 
   if (is.null(model)) {
     warning("Model is NULL for ", outcome_label, " ", city_label, " — skipping.")
     return(NULL)
   }
 
-  # --- City-specific CSI distribution (centering at median, span = IQR) ---
-  csi      <- dt_city$community_severance_index
-  csi      <- csi[!is.na(csi)]
-  cen_val  <- median(csi)
-  iqr      <- IQR(csi)
-  at_vec   <- c(cen_val, cen_val + iqr)   # [1] = center, [2] = center + IQR
+  # --- Q25, Q50, Q75 of CSI in the outlier-excluded city data ---
+  csi    <- dt_city$community_severance_index[!is.na(dt_city$community_severance_index)]
+  q25    <- as.numeric(quantile(csi, 0.25))
+  q50    <- as.numeric(quantile(csi, 0.50))  # centering value
+  q75    <- as.numeric(quantile(csi, 0.75))
+  at_vec <- c(q25, q50, q75)  # rows: 1=Q25, 2=Q50, 3=Q75
 
-  # --- Build a template newdata row (covariates at city means) ---
+  # --- Template newdata row: covariates at city means ---
   adj_cols <- c("pop_dens", "perc.black", "perc.hisp", "perc.pov", "building_density")
   means <- setNames(
     lapply(adj_cols, function(v) {
@@ -144,210 +117,179 @@ compute_iqr_effect <- function(model,
   )
   if (!is.null(offset_var)) template[[offset_var]] <- 1
 
-  # --- Extract CSI smooth lpmatrix block at evaluation points and at center ---
-  # Mirrors: b_at <- build_basis_for_x(basis, at_vec)
-  #          b_cen <- build_basis_for_x(basis, rep(cen_val, n))
-  lp_at  <- tryCatch(
-    extract_csi_lpblock(model, at_vec,           template),
-    error = function(e) { warning(e$message); NULL }
-  )
-  lp_cen <- tryCatch(
-    extract_csi_lpblock(model, rep(cen_val, length(at_vec)), template),
-    error = function(e) { warning(e$message); NULL }
-  )
+  # --- lpmatrix blocks: at Q25/Q50/Q75 and at Q50 (centering) ---
+  lp_at  <- tryCatch(extract_csi_lpblock(model, at_vec,        template),
+                     error = function(e) { warning(e$message); NULL })
+  lp_cen <- tryCatch(extract_csi_lpblock(model, rep(q50, 3),   template),
+                     error = function(e) { warning(e$message); NULL })
   if (is.null(lp_at) || is.null(lp_cen)) return(NULL)
 
-  # --- Centered contrast matrix: x_mat = X_at - X_cen ---
-  # Row 1: cen - cen = 0 (null contrast at the reference)
-  # Row 2: (cen + IQR) - cen = the IQR effect
+  # --- Centered contrast matrix (all rows relative to Q50) ---
+  # Row 1: smooth(Q25) - smooth(Q50)  [negative for increasing association]
+  # Row 2: smooth(Q50) - smooth(Q50)  = 0  [reference]
+  # Row 3: smooth(Q75) - smooth(Q50)  [positive for increasing association]
   x_mat <- lp_at$X - lp_cen$X
 
-  # --- CSI smooth coefficient block and its vcov submatrix ---
   beta_csi <- coef(model)[lp_at$coef_names]
   v_csi    <- vcov(model)[lp_at$coef_names, lp_at$coef_names, drop = FALSE]
 
-  # --- Pointwise effects and SEs (row-wise, as in BNE) ---
   fit_all <- as.numeric(x_mat %*% beta_csi)
-  xv      <- x_mat %*% v_csi
-  se_all  <- sqrt(pmax(rowSums(xv * x_mat), 0))
+  # fit_all[1] = smooth(Q25) - smooth(Q50)
+  # fit_all[2] = 0
+  # fit_all[3] = smooth(Q75) - smooth(Q50)
 
-  # IQR effect = contrast between row 2 (center + IQR) and row 1 (center)
-  # SE via compute_csi_contrast_se — mirrors compute_contrast_se() in BNE
-  est_lp <- fit_all[2] - fit_all[1]   # = fit_all[2] since row 1 is 0
-  se_lp  <- compute_csi_contrast_se(x_mat, v_csi, i = 2, j = 1)
-  lo_lp  <- est_lp - 1.96 * se_lp
-  hi_lp  <- est_lp + 1.96 * se_lp
+  # --- Three contrasts on the linear predictor scale ---
+  # Q50 vs Q25 (lower segment):  smooth(Q50) - smooth(Q25) = -fit_all[1]
+  # Q75 vs Q50 (upper segment):  smooth(Q75) - smooth(Q50) =  fit_all[3]
+  # Q75 vs Q25 (overall IQR):    smooth(Q75) - smooth(Q25) =  fit_all[3] - fit_all[1]
+  est_lp <- c(
+    q50_q25 = -fit_all[1],             # lower segment
+    q75_q50 =  fit_all[3],             # upper segment
+    q75_q25 =  fit_all[3] - fit_all[1] # overall
+  )
+  se_lp <- c(
+    q50_q25 = compute_csi_contrast_se(x_mat, v_csi, i = 2, j = 1),
+    q75_q50 = compute_csi_contrast_se(x_mat, v_csi, i = 3, j = 2),
+    q75_q25 = compute_csi_contrast_se(x_mat, v_csi, i = 3, j = 1)
+  )
+  lo_lp <- est_lp - 1.96 * se_lp
+  hi_lp <- est_lp + 1.96 * se_lp
 
-  # --- Build result row depending on link function ---
+  contrast_labels <- c("Q50_vs_Q25", "Q75_vs_Q50", "Q75_vs_Q25")
+
+  # --- Transform to effect scale depending on link ---
   fam_name <- family(model)$family
   link     <- family(model)$link
 
-  if (link == "identity") {
-    tibble(
-      outcome         = outcome_label,
-      model_spec      = model_spec,
-      city            = city_label,
-      family          = fam_name,
-      link            = link,
-      csi_median      = round(cen_val, 3),
-      csi_iqr         = round(iqr,     3),
-      effect_estimate = round(est_lp,  5),
-      ci_low_95       = round(lo_lp,   5),
-      ci_high_95      = round(hi_lp,   5),
-      effect_scale    = "absolute_difference",
-      interpretation  = paste0(
-        "Absolute NDVI difference per IQR increase in CSI ",
-        "(covariates at city-specific means, centered at city median)"
+  rows <- lapply(seq_along(est_lp), function(k) {
+    if (link == "identity") {
+      tibble(
+        outcome      = outcome_label,
+        city         = city_label,
+        contrast     = contrast_labels[k],
+        csi_q25      = round(q25, 3),
+        csi_q50      = round(q50, 3),
+        csi_q75      = round(q75, 3),
+        estimate     = round(est_lp[k], 5),
+        ci_low_95    = round(lo_lp[k],  5),
+        ci_high_95   = round(hi_lp[k],  5),
+        effect_scale = "absolute_difference",
+        family       = fam_name,
+        link         = link
       )
-    )
-
-  } else if (link == "log") {
-    ratio    <- exp(est_lp)
-    ratio_lo <- exp(lo_lp)
-    ratio_hi <- exp(hi_lp)
-
-    if (grepl("neighbor", outcome_label, ignore.case = TRUE)) {
-      eff_scale <- "IRR"
-      interp    <- paste0(
-        "Incidence rate ratio (IRR) per IQR increase in CSI ",
-        "(covariates at city-specific means, centered at city median)"
+    } else if (link == "log") {
+      eff_scale <- if (grepl("neighbor", outcome_label, ignore.case = TRUE)) "IRR" else "ratio"
+      tibble(
+        outcome      = outcome_label,
+        city         = city_label,
+        contrast     = contrast_labels[k],
+        csi_q25      = round(q25, 3),
+        csi_q50      = round(q50, 3),
+        csi_q75      = round(q75, 3),
+        estimate     = round(exp(est_lp[k]), 4),
+        ci_low_95    = round(exp(lo_lp[k]),  4),
+        ci_high_95   = round(exp(hi_lp[k]),  4),
+        effect_scale = eff_scale,
+        family       = fam_name,
+        link         = link
       )
     } else {
-      eff_scale <- "ratio"
-      interp    <- paste0(
-        "Distance ratio per IQR increase in CSI; >1 = farther from green space ",
-        "(covariates at city-specific means, centered at city median)"
-      )
+      warning("Unhandled link '", link, "' — skipping.")
+      NULL
     }
+  })
 
-    tibble(
-      outcome         = outcome_label,
-      model_spec      = model_spec,
-      city            = city_label,
-      family          = fam_name,
-      link            = link,
-      csi_median      = round(cen_val, 3),
-      csi_iqr         = round(iqr,     3),
-      effect_estimate = round(ratio,    4),
-      ci_low_95       = round(ratio_lo, 4),
-      ci_high_95      = round(ratio_hi, 4),
-      effect_scale    = eff_scale,
-      interpretation  = interp
-    )
-
-  } else {
-    warning("Unhandled link '", link, "' for ", outcome_label, " ", city_label)
-    return(NULL)
-  }
+  bind_rows(rows)
 }
 
 
 # =============================================================================
-# Load model objects
+# Load outlier-excluded primary adjusted models
 # =============================================================================
 
-ndvi_adj   <- readRDS(paste0(generated.data.folder,
-                              "ndvi_model_objects_city_adjusted_linear.rds"))
-gs_adj     <- readRDS(paste0(generated.data.folder,
-                              "greenspace_model_objects_city_adjusted_linear.rds"))
-nh_la_adj  <- readRDS(paste0(generated.data.folder,
-                              "neighbor_visit_primary_fit_city_la_2019_full_year.rds"))
-nh_nyc_adj <- readRDS(paste0(generated.data.folder,
-                              "neighbor_visit_primary_fit_city_nyc_2019_full_year.rds"))
-
-ndvi_crude   <- readRDS(paste0(generated.data.folder,
-                                "ndvi_model_objects_city_crude_linear.rds"))
-gs_crude     <- readRDS(paste0(generated.data.folder,
-                                "greenspace_model_objects_city_crude_linear.rds"))
-nh_la_crude  <- readRDS(paste0(generated.data.folder,
-                                "neighbor_visit_primary_crude_fit_city_la_2019_full_year.rds"))
-nh_nyc_crude <- readRDS(paste0(generated.data.folder,
-                                "neighbor_visit_primary_crude_fit_city_nyc_2019_full_year.rds"))
+ndvi_outl <- readRDS(paste0(generated.data.folder,
+                             "ndvi_outl_city_adjusted_linear.rds"))
+gs_outl   <- readRDS(paste0(generated.data.folder,
+                             "greenspace_outl_city_adjusted_linear.rds"))
+nh_outl   <- readRDS(paste0(generated.data.folder,
+                             "neighbor_visit_outl_city_adjusted_2019_full_year.rds"))
 
 
 # =============================================================================
-# Load modeling datasets (for city-specific covariate means and CSI IQR)
+# Load outlier-excluded datasets (for city-specific CSI quantiles and covariate means)
 # =============================================================================
 
-# NDVI / proximity dataset — saved before closest_greenspace == 0 recoding
-dt_ndvi_gs <- readRDS(paste0(generated.data.folder, "data_models.rds"))
-dt_ndvi_gs$closest_greenspace[dt_ndvi_gs$closest_greenspace == 0] <- 1
+# NDVI / proximity: derive outlier flags from data_models.rds
+dt_gs_full <- readRDS(paste0(generated.data.folder, "data_models.rds"))
+dt_gs_full$closest_greenspace[dt_gs_full$closest_greenspace == 0] <- 1
+dt_gs_full <- dt_gs_full |>
+  dplyr::group_by(city) |>
+  dplyr::mutate(
+    z_csi        = (community_severance_index - mean(community_severance_index, na.rm = TRUE)) /
+                    sd(community_severance_index, na.rm = TRUE),
+    outlier_flag = ifelse(abs(z_csi) > 2, "Outlier", "Within")
+  ) |>
+  dplyr::ungroup()
 
-dt_la_gs  <- dt_ndvi_gs[dt_ndvi_gs$city == "LA",  ]
-dt_nyc_gs <- dt_ndvi_gs[dt_ndvi_gs$city == "NYC", ]
+dt_la_gs  <- dplyr::filter(dt_gs_full, city == "LA",  outlier_flag == "Within")
+dt_nyc_gs <- dplyr::filter(dt_gs_full, city == "NYC", outlier_flag == "Within")
 
-# NH dataset
-dt_nh <- readRDS(paste0(generated.data.folder,
-                         "data_models_neighbor_visits_annual_average_2019_full_year.rds"))
-
-dt_nh_primary <- dt_nh |>
+# NH: outlier flags already applied in generate_linear_ice_outl_figures.R logic
+dt_nh_full <- readRDS(paste0(generated.data.folder,
+  "data_models_neighbor_visits_annual_average_2019_full_year.rds"))
+dt_nh_full <- dt_nh_full |>
   dplyr::filter(
     !is.na(neighbor_visit_count_annual_avg),
     !is.na(home_device_counts_total_parsed_annual_avg),
     home_device_counts_total_parsed_annual_avg > 0
-  )
+  ) |>
+  dplyr::group_by(city) |>
+  dplyr::mutate(
+    z_csi        = (community_severance_index - mean(community_severance_index, na.rm = TRUE)) /
+                    sd(community_severance_index, na.rm = TRUE),
+    outlier_flag = ifelse(abs(z_csi) > 2, "Outlier", "Within")
+  ) |>
+  dplyr::ungroup()
 
-dt_la_nh  <- dt_nh_primary[dt_nh_primary$city == "LA",  ]
-dt_nyc_nh <- dt_nh_primary[dt_nh_primary$city == "NYC", ]
+dt_la_nh  <- dplyr::filter(dt_nh_full, city == "LA",  outlier_flag == "Within")
+dt_nyc_nh <- dplyr::filter(dt_nh_full, city == "NYC", outlier_flag == "Within")
 
 
 # =============================================================================
-# Compute per-IQR effects — adjusted models
+# Compute quartile contrasts — outlier-excluded adjusted models
 # =============================================================================
 
 offset_nh <- "home_device_counts_total_parsed_annual_avg"
 
-results_adjusted <- bind_rows(
+results_all <- bind_rows(
 
-  compute_iqr_effect(ndvi_adj$fit_city_la,   dt_la_gs,  "NDVI",
-                     "adjusted", "LA"),
-  compute_iqr_effect(ndvi_adj$fit_city_nyc,  dt_nyc_gs, "NDVI",
-                     "adjusted", "NYC"),
+  compute_quartile_contrasts(ndvi_outl$fit_city_la,  dt_la_gs,
+                             "NDVI", "LA"),
+  compute_quartile_contrasts(ndvi_outl$fit_city_nyc, dt_nyc_gs,
+                             "NDVI", "NYC"),
 
-  compute_iqr_effect(gs_adj$fit_city_la,     dt_la_gs,  "closest_greenspace",
-                     "adjusted", "LA"),
-  compute_iqr_effect(gs_adj$fit_city_nyc,    dt_nyc_gs, "closest_greenspace",
-                     "adjusted", "NYC"),
+  compute_quartile_contrasts(gs_outl$fit_city_la,    dt_la_gs,
+                             "closest_greenspace", "LA"),
+  compute_quartile_contrasts(gs_outl$fit_city_nyc,   dt_nyc_gs,
+                             "closest_greenspace", "NYC"),
 
-  compute_iqr_effect(nh_la_adj,  dt_la_nh,  "neighbor_visit_count_annual_avg",
-                     "adjusted", "LA",  offset_var = offset_nh),
-  compute_iqr_effect(nh_nyc_adj, dt_nyc_nh, "neighbor_visit_count_annual_avg",
-                     "adjusted", "NYC", offset_var = offset_nh)
-)
+  compute_quartile_contrasts(nh_outl$fit_city_la,    dt_la_nh,
+                             "neighbor_visit_count_annual_avg", "LA",
+                             offset_var = offset_nh),
+  compute_quartile_contrasts(nh_outl$fit_city_nyc,   dt_nyc_nh,
+                             "neighbor_visit_count_annual_avg", "NYC",
+                             offset_var = offset_nh)
 
-
-# =============================================================================
-# Compute per-IQR effects — crude models
-# =============================================================================
-
-results_crude <- bind_rows(
-
-  compute_iqr_effect(ndvi_crude$fit_city_la,   dt_la_gs,  "NDVI",
-                     "crude", "LA"),
-  compute_iqr_effect(ndvi_crude$fit_city_nyc,  dt_nyc_gs, "NDVI",
-                     "crude", "NYC"),
-
-  compute_iqr_effect(gs_crude$fit_city_la,     dt_la_gs,  "closest_greenspace",
-                     "crude", "LA"),
-  compute_iqr_effect(gs_crude$fit_city_nyc,    dt_nyc_gs, "closest_greenspace",
-                     "crude", "NYC"),
-
-  compute_iqr_effect(nh_la_crude,  dt_la_nh,  "neighbor_visit_count_annual_avg",
-                     "crude", "LA",  offset_var = offset_nh),
-  compute_iqr_effect(nh_nyc_crude, dt_nyc_nh, "neighbor_visit_count_annual_avg",
-                     "crude", "NYC", offset_var = offset_nh)
-)
+) |>
+  dplyr::arrange(outcome, city, contrast)
 
 
 # =============================================================================
-# Combine and save
+# Save
 # =============================================================================
-
-results_all <- bind_rows(results_adjusted, results_crude) |>
-  dplyr::arrange(outcome, model_spec, city)
 
 write_csv(results_all,
-          paste0(output.folder, "numeric_results_per_iqr_csi.csv"))
+          paste0(output.folder, "numeric_results_quartile_contrasts.csv"))
 
-message("Saved: output/numeric_results_per_iqr_csi.csv")
-print(results_all)
+message("Saved: output/numeric_results_quartile_contrasts.csv")
+print(results_all, n = Inf)

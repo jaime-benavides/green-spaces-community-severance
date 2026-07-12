@@ -35,6 +35,23 @@ dt_primary <- dt |>
     home_device_counts_total_parsed_annual_avg > 0
   )
 
+# City-specific CSI outlier exclusion (consistent with primary analysis)
+city_csi_stats <- dt_primary |>
+  dplyr::group_by(city) |>
+  dplyr::summarise(
+    mean_csi = mean(community_severance_index, na.rm = TRUE),
+    sd_csi   = sd(community_severance_index,   na.rm = TRUE),
+    .groups  = "drop"
+  )
+dt_primary <- dt_primary |>
+  dplyr::left_join(city_csi_stats, by = "city") |>
+  dplyr::mutate(
+    z_csi        = (community_severance_index - mean_csi) / sd_csi,
+    outlier_flag = ifelse(abs(z_csi) > 2, "Outlier", "Within")
+  ) |>
+  dplyr::select(-mean_csi, -sd_csi) |>
+  dplyr::filter(outlier_flag != "Outlier")
+
 dt_nh_q1 <- dt_primary[dt_primary$ICE_inc_quintile == "Q1 (Most Disadvantaged)", ]
 dt_nh_q5 <- dt_primary[dt_primary$ICE_inc_quintile == "Q5 (Most Advantaged)", ]
 
