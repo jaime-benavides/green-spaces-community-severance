@@ -174,47 +174,126 @@ save_tmap <- function(tmap_obj, path, width = 3000, height = 1400) {
   message("Saved: ", basename(path))
 }
 
-# ── FIGURE 1: two rows (LA, NYC), each with 4 maps (NH, NDVI, proximity, CSI) ──
-message("Building Figure 1 composite map (2 rows: LA, NYC; 4 columns: NH, NDVI, proximity, CSI)...")
+# ── FIGURE 1: shared-legend decile grid (rows = LA, NYC; columns = NH, NDVI,
+# proximity, CSI). Follows the layout convention of Benavides et al. 2026
+# (Environ Epidemiol): a single decile-percentage legend at the top, variable
+# names as column headers, and city names as row headers, rather than a
+# separate legend and title on every one of the eight panels. ──────────────
+message("Building Figure 1 composite map (shared decile-percentage legend, faceted by city x variable)...")
 
-# Panels are labeled a-h (LA row = a-d, NYC row = e-h) instead of carrying full
-# descriptive titles; the mapping is spelled out in the figure caption.
-p_nh_la  <- make_panel(sf_la_nh,  "neighbor_visit_count_annual_avg",
-                        "Greens", "Los Angeles", show_legend = TRUE,
-                        legend_title = "NH visits", panel_label = "a")
-p_ndvi_la  <- make_panel(sf_la,  "NDVI",
-                          "YlGn", "Los Angeles", show_legend = TRUE,
-                          legend_title = "NDVI", panel_label = "b")
-p_prox_la  <- make_panel(sf_la,  "closest_greenspace",
-                          "Blues", "Los Angeles", show_legend = TRUE,
-                          legend_title = "Distance to\ngreen space (m)",
-                          panel_label = "c")
-p_csi_la <- make_panel(sf_la, "community_severance_index",
-                         "Reds", "Los Angeles", show_legend = TRUE,
-                         legend_title = "CSI", panel_label = "d")
+library(ggplot2)
 
-p_nh_nyc <- make_panel(sf_nyc_nh, "neighbor_visit_count_annual_avg",
-                        "Greens", "New York City", show_legend = TRUE,
-                        legend_title = "NH visits", panel_label = "e")
-p_ndvi_nyc <- make_panel(sf_nyc, "NDVI",
-                          "YlGn", "New York City", show_legend = TRUE,
-                          legend_title = "NDVI", panel_label = "f")
-p_prox_nyc <- make_panel(sf_nyc, "closest_greenspace",
-                          "Blues", "New York City", show_legend = TRUE,
-                          legend_title = "Distance to\ngreen space (m)",
-                          panel_label = "g")
-p_csi_nyc <- make_panel(sf_nyc, "community_severance_index",
-                         "Reds", "New York City", show_legend = TRUE,
-                         legend_title = "CSI", panel_label = "h")
+decile_rank <- function(x) {
+  r <- rep(NA_integer_, length(x))
+  ok <- !is.na(x)
+  r[ok] <- dplyr::ntile(x[ok], 10)
+  r
+}
 
-fig1 <- tmap_arrange(
-  p_nh_la,  p_ndvi_la,  p_prox_la,  p_csi_la,
-  p_nh_nyc, p_ndvi_nyc, p_prox_nyc, p_csi_nyc,
-  nrow = 2, ncol = 4
-)
+decile_labels <- paste0(seq(0, 90, 10), "%–", seq(10, 100, 10), "%")
+decile_pal    <- colorRampPalette(RColorBrewer::brewer.pal(9, "Purples"))(10)
 
-save_tmap(fig1, paste0(output.folder, "figure1_nh_csi_maps.png"),
-          width = 5600, height = 2600)
+var_levels <- c("Neighboring-home visit rate", "NDVI",
+                 "Distance to green space", "Community Severance Index")
+
+# One row per tract x variable, with a within-city decile rank (1-10) computed
+# separately for each variable; the neighboring-home visit rate is ranked
+# within the NH analytic sample only (sf_data_nh), the other three variables
+# within the full city sample (sf_data), matching the original per-panel maps.
+build_fig1_df <- function(sf_data, sf_data_nh, city_name) {
+  nh_dec <- sf_data_nh |>
+    sf::st_drop_geometry() |>
+    dplyr::transmute(GEOID, decile = decile_rank(neighbor_visit_count_annual_avg),
+                      variable = var_levels[1])
+
+  base <- sf_data |>
+    dplyr::mutate(
+      ndvi_dec = decile_rank(NDVI),
+      prox_dec = decile_rank(closest_greenspace),
+      csi_dec  = decile_rank(community_severance_index)
+    )
+  geom_lookup <- base |> dplyr::select(GEOID, geometry)
+
+  other_dec <- dplyr::bind_rows(
+    base |> sf::st_drop_geometry() |>
+      dplyr::transmute(GEOID, decile = ndvi_dec, variable = var_levels[2]),
+    base |> sf::st_drop_geometry() |>
+      dplyr::transmute(GEOID, decile = prox_dec, variable = var_levels[3]),
+    base |> sf::st_drop_geometry() |>
+      dplyr::transmute(GEOID, decile = csi_dec,  variable = var_levels[4])
+  )
+
+  dplyr::bind_rows(nh_dec, other_dec) |>
+    dplyr::left_join(geom_lookup, by = "GEOID") |>
+    sf::st_as_sf() |>
+    dplyr::mutate(city = city_name,
+                  variable = factor(variable, levels = var_levels))
+}
+
+fig1_df <- dplyr::bind_rows(
+  build_fig1_df(sf_la,  sf_la_nh,  "Los Angeles"),
+  build_fig1_df(sf_nyc, sf_nyc_nh, "New York City")
+) |>
+  dplyr::mutate(
+    city     = factor(city, levels = c("Los Angeles", "New York City")),
+    decile_f = factor(decile_labels[decile], levels = decile_labels)
+  )
+
+# coord_sf() does not support facet_grid(scales = "free"), and LA/NYC are far
+# enough apart that shared map scales shrink both cities to specks, so the
+# grid is built panel-by-panel with patchwork instead of via faceting.
+map_panel <- function(city_name, var_name) {
+  d <- dplyr::filter(fig1_df, city == city_name, variable == var_name)
+  ggplot(d) +
+    geom_sf(aes(fill = decile_f), color = NA) +
+    scale_fill_manual(values = decile_pal, na.value = "white",
+                       drop = FALSE, name = NULL) +
+    theme_void() +
+    theme(legend.position = "none")
+}
+
+text_panel <- function(label, angle = 0, size = 5) {
+  ggplot() +
+    annotate("text", x = 0, y = 0, label = label, angle = angle,
+             fontface = "bold", size = size) +
+    xlim(-1, 1) + ylim(-1, 1) +
+    theme_void()
+}
+
+legend_src <- map_panel("Los Angeles", var_levels[1]) +
+  scale_fill_manual(values = decile_pal, na.value = "white", drop = FALSE,
+                     name = NULL,
+                     guide = guide_legend(nrow = 1, byrow = TRUE,
+                                          keywidth = unit(1.1, "lines"),
+                                          keyheight = unit(1.1, "lines"))) +
+  theme(legend.position = "right", legend.direction = "horizontal",
+        legend.text = element_text(size = 11))
+shared_legend <- cowplot::get_legend(legend_src)
+
+row_label_w <- 0.10
+col_w       <- (1 - row_label_w) / 4
+row_widths  <- c(row_label_w, col_w, col_w, col_w, col_w)
+
+build_row <- function(row_label_plot, city_name = NULL) {
+  panels <- if (is.null(city_name)) {
+    lapply(var_levels, text_panel)
+  } else {
+    lapply(var_levels, function(v) map_panel(city_name, v))
+  }
+  row <- patchwork::wrap_plots(c(list(row_label_plot), panels), nrow = 1)
+  row + patchwork::plot_layout(widths = row_widths)
+}
+
+header_row <- build_row(text_panel(""))
+la_row     <- build_row(text_panel("Los Angeles", angle = 90), "Los Angeles")
+nyc_row    <- build_row(text_panel("New York City", angle = 90), "New York City")
+
+fig1 <- patchwork::wrap_elements(shared_legend) / header_row / la_row / nyc_row +
+  patchwork::plot_layout(heights = c(0.08, 0.06, 1, 1))
+
+ggsave(paste0(output.folder, "figure1_nh_csi_maps.png"), fig1,
+       width = 14, height = 8, dpi = 300, bg = "white")
+message("Saved: figure1_nh_csi_maps.png")
 file.copy(paste0(output.folder, "figure1_nh_csi_maps.png"),
           paste0(manuscript.folder, "figs/figure1_nh_csi_maps.png"),
           overwrite = TRUE)
@@ -226,13 +305,13 @@ message("Building Supp Figure S2b: ICE Q1/Q5 categorical map...")
 ice_pal    <- c("#D73027", "#D9D9D9", "#4575B4")  # red, gray, blue
 ice_labels <- c("Q1 (Most Deprived)", "Q2–Q4", "Q5 (Most Advantaged)")
 
-p_ice_q1q5_nyc <- make_panel_cat(sf_nyc_ice, "ice_q1q5", ice_pal, ice_labels,
-                                   "New York City", show_legend = FALSE)
 p_ice_q1q5_la  <- make_panel_cat(sf_la_ice,  "ice_q1q5", ice_pal, ice_labels,
-                                   "Los Angeles", show_legend = TRUE,
+                                   "Los Angeles", show_legend = FALSE)
+p_ice_q1q5_nyc <- make_panel_cat(sf_nyc_ice, "ice_q1q5", ice_pal, ice_labels,
+                                   "New York City", show_legend = TRUE,
                                    legend_title = "")
 
-supp_ice_q1q5 <- tmap_arrange(p_ice_q1q5_nyc, p_ice_q1q5_la, nrow = 1, ncol = 2)
+supp_ice_q1q5 <- tmap_arrange(p_ice_q1q5_la, p_ice_q1q5_nyc, nrow = 1, ncol = 2)
 
 save_tmap(supp_ice_q1q5,
           paste0(output.folder, "supp_map_ice_q1_q5.png"),
@@ -247,12 +326,12 @@ message("Copied supp_map_ice_q1_q5.png to manuscript/figs/")
 save_supp_map <- function(var, palette, leg_title,
                           fname, width = 3200, height = 1400,
                           reverse = FALSE) {
-  p_nyc <- make_panel(sf_nyc, var, palette, "New York City",
-                      show_legend = FALSE, reverse = reverse)
   p_la  <- make_panel(sf_la,  var, palette, "Los Angeles",
+                      show_legend = FALSE, reverse = reverse)
+  p_nyc <- make_panel(sf_nyc, var, palette, "New York City",
                       show_legend = TRUE, legend_title = leg_title,
                       reverse = reverse)
-  out <- tmap_arrange(p_nyc, p_la, nrow = 1, ncol = 2)
+  out <- tmap_arrange(p_la, p_nyc, nrow = 1, ncol = 2)
   save_tmap(out, paste0(output.folder, fname), width = width, height = height)
   file.copy(paste0(output.folder, fname),
             paste0(manuscript.folder, "figs/", fname), overwrite = TRUE)
@@ -261,10 +340,9 @@ save_supp_map <- function(var, palette, leg_title,
 
 message("Generating supplementary descriptive maps...")
 
-save_supp_map("NDVI", "YlGn", "NDVI\n(decile)", "supp_map_ndvi.png")
-
-save_supp_map("closest_greenspace", "Blues", "Distance to\ngreen space (m)\n(decile)",
-              "supp_map_proximity.png")
+# NDVI and distance-to-green-space spatial maps are NOT regenerated here: they
+# duplicated Figure 1 (which already maps both variables) and were removed
+# from the manuscript as Figs S1a/S1b on 2026-07-13.
 
 save_supp_map("ICE_inc", "RdBu", "Income ICE\n(decile)", "supp_map_ice_inc.png")
 

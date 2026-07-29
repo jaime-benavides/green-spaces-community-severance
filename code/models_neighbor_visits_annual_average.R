@@ -66,6 +66,26 @@ dt_primary <- dt |>
     home_device_counts_total_parsed_annual_avg > 0
   )
 
+# City-specific CSI z-scores, for excluding outlier tracts from the crude
+# (sensitivity) models; the primary/adjusted models here use dt_primary
+# unfiltered because they feed the full-sample sensitivity figure (S4),
+# which is meant to include outlier tracts.
+city_csi_stats <- dt_primary |>
+  group_by(city) |>
+  summarise(
+    mean_csi = mean(community_severance_index, na.rm = TRUE),
+    sd_csi   = sd(community_severance_index, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+dt_primary_no_outl <- dt_primary |>
+  left_join(city_csi_stats, by = "city") |>
+  mutate(
+    z_csi        = (community_severance_index - mean_csi) / sd_csi,
+    outlier_flag = ifelse(abs(z_csi) > 2, "Outlier (|z|>2)", "Within ±2 SD")
+  ) |>
+  filter(outlier_flag != "Outlier (|z|>2)")
+
 dt_fallback <- dt |>
   filter(
     !is.na(neighbor_visit_count_annual_avg),
@@ -84,7 +104,7 @@ model_list_neighbor_visit_primary <- list(
     offset_var = "home_device_counts_total_parsed_annual_avg"
   ),
   fit_all_crude = model_gam_mixed_neighbor_visits(
-    dt_primary,
+    dt_primary_no_outl,
     outcome_var = "neighbor_visit_count_annual_avg",
     family_type = "nb",
     offset_var = "home_device_counts_total_parsed_annual_avg",
@@ -92,7 +112,7 @@ model_list_neighbor_visit_primary <- list(
     crude = TRUE
   ),
   fits_city_crude = lapply(
-    split(dt_primary, droplevels(dt_primary$city)),
+    split(dt_primary_no_outl, droplevels(dt_primary_no_outl$city)),
     function(x) model_gam_mixed_neighbor_visits(
       x,
       outcome_var = "neighbor_visit_count_annual_avg",
@@ -156,10 +176,12 @@ names(model_list_neighbor_visit_share$fits_city) <- paste0("fit_city_", tolower(
 # -----------------------------------------------------------------------
 # ICE Q1/Q5 income-stratified models (neighboring-home count, primary offset)
 # Q1 = most disadvantaged; Q5 = most advantaged
+# Outlier-excluded, consistent with the primary analysis (Methods) and with
+# the NDVI/proximity ICE Q1/Q5 models in generate_linear_ice_outl_figures.R.
 # -----------------------------------------------------------------------
 
-dt_nh_q1 <- dt_primary[dt_primary$ICE_inc_quintile == "Q1 (Most Disadvantaged)", ]
-dt_nh_q5 <- dt_primary[dt_primary$ICE_inc_quintile == "Q5 (Most Advantaged)", ]
+dt_nh_q1 <- dt_primary_no_outl[dt_primary_no_outl$ICE_inc_quintile == "Q1 (Most Disadvantaged)", ]
+dt_nh_q5 <- dt_primary_no_outl[dt_primary_no_outl$ICE_inc_quintile == "Q5 (Most Advantaged)", ]
 
 fits_nh_ice_q1 <- lapply(
   split(dt_nh_q1, droplevels(dt_nh_q1$city)),

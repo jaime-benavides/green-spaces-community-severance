@@ -73,7 +73,7 @@ ice_ylim <- function(q1_list, q5_list,
                      smooth_term = "s(community_severance_index)") {
   all_vals <- unlist(lapply(names(q1_list), function(city) {
     m1 <- q1_list[[city]]; m5 <- q5_list[[city]]
-    int1 <- coef(m1)[1];   int5 <- coef(m5)[1]
+    int1 <- ice_reference_level(m1); int5 <- ice_reference_level(m5)
     linkinv <- m1$family$linkinv
     fam     <- m1$family$family
     trf <- function(x, int) {
@@ -92,10 +92,13 @@ ice_ylim <- function(q1_list, q5_list,
     max(all_vals, na.rm = TRUE) + 0.05 * rng)
 }
 
-# Wrap overlay plots: shared y-axis, right-panel y-label removed
-make_ice_row <- function(q1_list, q5_list) {
+# Wrap overlay plots: shared y-axis, right-panel y-label removed.
+# show_title is TRUE only for the top data row so the city names appear once,
+# above the combined figure, rather than repeated on every row.
+make_ice_row <- function(q1_list, q5_list, show_title = FALSE) {
   ylim  <- ice_ylim(q1_list, q5_list)
-  plots <- plot_ice_overlay(q1_list, q5_list, rug = TRUE, y_limits = ylim)
+  plots <- plot_ice_overlay(q1_list, q5_list, rug = TRUE, y_limits = ylim,
+                             show_title = show_title)
   if (length(plots) > 1)
     plots[[length(plots)]] <- plots[[length(plots)]] +
       ggplot2::theme(axis.title.y = ggplot2::element_blank())
@@ -105,10 +108,19 @@ make_ice_row <- function(q1_list, q5_list) {
 if (file.exists(ndvi_ice_path) && file.exists(gs_ice_path)) {
   ndvi_ice <- readRDS(ndvi_ice_path)
   gs_ice   <- readRDS(gs_ice_path)
+
+  # Extract a single shared Q1/Q5 legend (identical across all panels) and
+  # place it once above the combined figure instead of repeating it per panel.
+  legend_plot <- plot_ice_overlay(nh_ice$q1, nh_ice$q5, rug = FALSE)[[1]] +
+    ggplot2::theme(legend.position = "right", legend.direction = "horizontal")
+  shared_legend <- cowplot::get_legend(legend_plot)
+
   save_fig(
-    make_ice_row(nh_ice$q1,   nh_ice$q5)   /
-    make_ice_row(ndvi_ice$q1, ndvi_ice$q5) /
-    make_ice_row(gs_ice$q1,   gs_ice$q5),
+    patchwork::wrap_elements(shared_legend) /
+    make_ice_row(nh_ice$q1,   nh_ice$q5,   show_title = TRUE) /
+    make_ice_row(ndvi_ice$q1, ndvi_ice$q5, show_title = FALSE) /
+    make_ice_row(gs_ice$q1,   gs_ice$q5,   show_title = FALSE) +
+    patchwork::plot_layout(heights = c(0.12, 1, 1, 1)),
     paste0(output.folder, "models_result_ice_q1_q5_combined.png"),
     width = 1400, height = 1800
   )

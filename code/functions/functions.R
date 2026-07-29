@@ -1553,11 +1553,44 @@ plot_city_comparison <- function(model_list, log_y = FALSE, rug = TRUE,
   plots <- plot_smooth_gam(model_list,
     smooth_term = smooth_term, line_color = line_color,
     ci_alpha = ci_alpha, fill_color = fill_color,
-    rug = rug, y_limits = ylim, show_title = FALSE, log_y = log_y)
+    rug = rug, y_limits = ylim, show_title = TRUE, log_y = log_y)
   if (length(plots) > 1)
     plots[[length(plots)]] <- plots[[length(plots)]] +
       ggplot2::theme(axis.title.y = ggplot2::element_blank())
   patchwork::wrap_plots(plots)
+}
+
+# Reference level for an ICE-stratum model: the linear predictor evaluated
+# with the CSI smooth and the neighborhood random effect held at their
+# average (zero) contribution, but the other adjustment covariates set to
+# their stratum-specific means rather than zero. This is added back to the
+# (zero-centered) CSI smooth so plotted/reported curves are expressed
+# relative to a typical tract in that stratum, not an unrealistic tract with
+# all covariates equal to zero.
+ice_reference_level <- function(model) {
+  dt <- model$model
+  adj_cols <- intersect(
+    c("pop_dens", "perc.black", "perc.hisp", "perc.pov", "building_density"),
+    names(dt)
+  )
+  means <- setNames(lapply(adj_cols, function(v) mean(dt[[v]], na.rm = TRUE)), adj_cols)
+  ref_neigh <- levels(dt$neighborhood)[1]
+
+  template <- as.data.frame(means, stringsAsFactors = FALSE)
+  template$community_severance_index <- 0
+  template$neighborhood <- ref_neigh
+
+  form_str <- paste(deparse(formula(model)), collapse = " ")
+  offset_match <- regmatches(form_str, regexpr("offset\\(log\\(([^)]+)\\)\\)", form_str))
+  if (length(offset_match) > 0 && nzchar(offset_match)) {
+    offset_var <- sub("offset\\(log\\(([^)]+)\\)\\)", "\\1", offset_match)
+    template[[offset_var]] <- 1
+  }
+
+  Xp <- mgcv::predict.gam(model, newdata = template, type = "lpmatrix")
+  drop_cols <- grep("^s\\(community_severance_index\\)|^s\\(neighborhood\\)", colnames(Xp))
+  if (length(drop_cols) > 0) Xp[, drop_cols] <- 0
+  as.numeric(Xp %*% coef(model))
 }
 
 # Plot Q1 vs Q5 ICE overlay: one panel per city, Q1=red, Q5=blue
@@ -1565,7 +1598,8 @@ plot_city_comparison <- function(model_list, log_y = FALSE, rug = TRUE,
 plot_ice_overlay <- function(fits_q1, fits_q5,
                              smooth_term = "s(community_severance_index)",
                              rug = TRUE,
-                             y_limits = NULL) {
+                             y_limits = NULL,
+                             show_title = TRUE) {
 
   city_label_map <- c(nyc = "New York City", la = "Los Angeles")
   response_label_map <- c(
@@ -1591,8 +1625,8 @@ plot_ice_overlay <- function(fits_q1, fits_q5,
       linkinv  <- mod_q1$family$linkinv
       response_var <- as.character(formula(mod_q1))[2]
 
-      intercept_q1 <- coef(mod_q1)[1]
-      intercept_q5 <- coef(mod_q5)[1]
+      intercept_q1 <- ice_reference_level(mod_q1)
+      intercept_q5 <- ice_reference_level(mod_q5)
 
       transform <- function(x, intercept) {
         if (grepl("gaussian", fam_name, ignore.case = TRUE)) {
@@ -1638,15 +1672,14 @@ plot_ice_overlay <- function(fits_q1, fits_q5,
         labs(
           x     = "Community Severance Index",
           y     = y_label,
-          title = city_title
+          title = if (show_title) city_title else NULL
         ) +
         theme_bw(base_size = 20) +
         theme(
           plot.title    = element_text(size = 24, face = "bold", hjust = 0.5),
           axis.title    = element_text(size = 20),
           axis.text     = element_text(size = 18),
-          legend.position = "top",
-          legend.text   = element_text(size = 16),
+          legend.position = "none",
           plot.margin   = margin(8, 12, 8, 8)
         )
 

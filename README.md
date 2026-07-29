@@ -48,7 +48,7 @@ Steps 1–6 require external data. Steps 7 onwards can be run using pre-generate
 | 8c | `code/extract_numeric_results.R` | Q25-to-Q75 quartile contrasts — source of Table S2 and Results-text numbers |
 | 8d | `code/generate_nh_distribution_figure.R` | NH visits distribution figure |
 
-See `CODE_REVIEW.md` for the full reproduction guide, including diagnostic-only scripts not part of the manuscript pipeline (`inspect_nh_missingness.R`, `diagnose_nh_missing_cbgs.R`, `map_uncovered_cbgs_nh.R`).
+See `CODE_REVIEW.md` for the full reproduction guide, including diagnostic-only scripts not part of the manuscript pipeline (`inspect_nh_missingness.R`, `map_uncovered_cbgs_nh.R`, `diagnose_nh_exclusion_reason.R`, `diagnose_ndvi_missing_reason.R`, `inspect_table2_missingness.R`).
 
 Steps 6 and 7 can be run together:
 

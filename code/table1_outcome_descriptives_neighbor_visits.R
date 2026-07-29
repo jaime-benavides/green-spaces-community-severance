@@ -26,12 +26,12 @@ dt <- readRDS(input_path)
 
 # ---- Variable sets ----
 outcomes_map <- c(
-  NDVI = "NDVI",
-  closest_greenspace = "Distance to nearest green space (m)",
   neighbor_visit_count_annual_avg =
     "Neighboring-home visits (annual avg count)",
   neighbor_visit_share_annual_avg =
-    "Neighboring-home visits (annual avg share)"
+    "Neighboring-home visits (annual avg share)",
+  NDVI = "NDVI",
+  closest_greenspace = "Distance to nearest green space (m)"
 )
 
 exposure_covariates_map <- c(
@@ -49,8 +49,8 @@ exposure_covariates_map <- c(
 tbl2_breaks <- c("Exposure" = 1L, "Covariates" = 2L)
 
 city_n <- c(
-  NYC = sum(dt$city == "NYC"),
-  LA  = sum(dt$city == "LA")
+  LA  = sum(dt$city == "LA"),
+  NYC = sum(dt$city == "NYC")
 )
 
 summarise_var <- function(x) {
@@ -71,7 +71,7 @@ build_summary <- function(var_map) {
     label <- var_map[[var]]
     if (!var %in% names(dt)) return(NULL)
     out <- data.frame(label = label, stringsAsFactors = FALSE)
-    for (city in c("NYC", "LA")) {
+    for (city in c("LA", "NYC")) {
       x <- dt[[var]][dt$city == city]
       s <- summarise_var(x)
       out[[paste0(city, "_n")]]        <- s$n_nonmissing
@@ -118,7 +118,7 @@ write_table <- function(summary_tbl, caption, label,
     "\\small",
     "\\begin{tabular}{lcc}",
     "\\toprule",
-    paste0("Variable & ", nyc_col, " & ", la_col, " \\\\"),
+    paste0("Variable & ", la_col, " & ", nyc_col, " \\\\"),
     "\\midrule",
     sep = "\n"
   )
@@ -146,8 +146,8 @@ write_table <- function(summary_tbl, caption, label,
       body_lines,
       paste0(
         "\\quad ", row$label,
-        " & ", nyc_cell,
-        " & ", la_cell, " \\\\"
+        " & ", la_cell,
+        " & ", nyc_cell, " \\\\"
       )
     )
   }
@@ -157,8 +157,8 @@ write_table <- function(summary_tbl, caption, label,
     miss_parts <- vapply(which(miss_rows), function(i) {
       row <- summary_tbl[i, ]
       parts <- character(0)
-      if (row$NYC_n_miss > 0) parts <- c(parts, paste0("NYC $n$ = ", row$NYC_n_miss))
       if (row$LA_n_miss  > 0) parts <- c(parts, paste0("LA $n$ = ",  row$LA_n_miss))
+      if (row$NYC_n_miss > 0) parts <- c(parts, paste0("NYC $n$ = ", row$NYC_n_miss))
       paste0(row$label, " (", paste(parts, collapse = ", "), ")")
     }, character(1))
     footnote <- paste0(
@@ -189,7 +189,7 @@ write_table(
   summary_tbl = tbl1,
   caption     = paste0(
     "Descriptive statistics for study outcomes in the 2019 ",
-    "analytic sample, separately for NYC and LA. ",
+    "analytic sample, separately for LA and NYC. ",
     "Values are median [P25, P75]."
   ),
   label    = "tab:outcomes_descriptives",
@@ -209,7 +209,7 @@ write_table(
   summary_tbl    = tbl2,
   caption        = paste0(
     "Descriptive statistics for the exposure and covariates ",
-    "in the 2019 analytic sample, separately for NYC and LA. ",
+    "in the 2019 analytic sample, separately for LA and NYC. ",
     "Values are median [P25, P75]."
   ),
   label          = "tab:exposure_covariates_descriptives",
