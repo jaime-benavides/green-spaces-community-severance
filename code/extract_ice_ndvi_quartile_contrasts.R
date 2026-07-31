@@ -15,11 +15,15 @@ library(readr)
 # Purpose: Quantify the CSI-NDVI slope within each ICE stratum (Q1 most
 #          disadvantaged, Q5 most advantaged) for each city, so the Secondary
 #          analysis paragraph of sn-article.tex can describe the LA vs. NYC
-#          pattern (similar shape in LA; Q1-linear/Q5-non-linear in NYC) with
-#          the same quartile-segment contrast format already used for the
-#          primary and NH-stratified results, rather than a purely qualitative
-#          description of the NYC curves. Computed within each stratum's own
-#          model (NOT the Q1-vs-Q5 baseline gap, which is already reported in
+#          pattern (similar magnitude in LA; larger decrease in NYC Q5 than
+#          Q1) with the same quartile-segment contrast (estimate + CI) format
+#          already used for the primary and NH-stratified results. A coauthor
+#          flagged (2026-07-31) that citing spline edf per stratum is not a
+#          helpful way to communicate this comparison to readers; the
+#          manuscript now reports the estimate/CI columns below instead (edf
+#          is still computed and retained in the output for reference).
+#          Computed within each stratum's own model (NOT the Q1-vs-Q5
+#          baseline gap, which is already reported in
 #          extract_ice_effect_modification_contrasts.R).
 #
 # Method:  Same lpmatrix/delta-method approach as extract_numeric_results.R

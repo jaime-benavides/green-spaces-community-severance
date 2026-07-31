@@ -73,14 +73,14 @@ padus_ar_nyc <- padus_ar[nyc_ids, ]
 nyc_only_ids <- sapply(sf::st_intersects(padus_ar, city_boundary_nyc_raw),function(x){length(x)>0})
 padus_ar_nyc_only <- padus_ar[nyc_only_ids, ]
 
+# check for nyc how much of the green space is water body
+water_bodies_nyc <- sf::st_read('/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/geom/NYC_Planimetrics_2022.gdb', layer = "Hydrography") %>%
+sf::st_transform(crs)
+
 water_within_padus <- sf::st_intersection(
   padus_ar_nyc_only,
   water_bodies_nyc
 )
-
-# check for nyc how much of the green space is water body
-water_bodies_nyc <- sf::st_read('/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/geom/NYC_Planimetrics_2022.gdb', layer = "Hydrography") %>%
-sf::st_transform(crs)
 
 # in the case of nyc mental health community severance, only important in zip codes
 acs.dt <- readRDS('/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/workspace/community_severance_nys_climate_change_mh/data/generated/acs_dt.rds')
@@ -360,7 +360,7 @@ ggplot(dt, aes(x =closest_greenspace, fill = city)) +
   geom_density(alpha = 0.5) +
   scale_fill_manual(values = green_palette) +
   labs(
-    title = "Density",
+    title = "Distance to Nearest Green Space Distribution",
     x = "Distance to closest greenspace (m)", y = "Density", fill = "City"
   ) +
   coord_cartesian(xlim = c(0, 5000)) +

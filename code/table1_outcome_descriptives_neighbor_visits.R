@@ -24,205 +24,209 @@ if (!file.exists(input_path)) stop("Input dataset not found: ", input_path)
 
 dt <- readRDS(input_path)
 
-# ---- Variable sets ----
-outcomes_map <- c(
-  neighbor_visit_count_annual_avg =
-    "Neighboring-home visits (annual avg count)",
-  neighbor_visit_share_annual_avg =
-    "Neighboring-home visits (annual avg share)",
-  NDVI = "NDVI",
-  closest_greenspace = "Distance to nearest green space (m)"
-)
-
-exposure_covariates_map <- c(
-  community_severance_index = "Community Severance Index",
-  perc.black                = "Percent Black",
-  perc.hisp                 = "Percent Hispanic",
-  perc.pov                  = "Percent poverty",
-  pop_dens                  = "Population density",
-  building_density          = "Building density",
-  ICE_inc                   = "Income ICE"
-)
-
-# section_breaks for Table 2: named integer vector row-index -> section label
-# header is inserted before that row
-tbl2_breaks <- c("Exposure" = 1L, "Covariates" = 2L)
-
 city_n <- c(
   LA  = sum(dt$city == "LA"),
   NYC = sum(dt$city == "NYC")
 )
 
-summarise_var <- function(x) {
-  n_miss   <- sum(is.na(x))
-  miss_pct <- round(100 * n_miss / length(x), 1)
+stats_for <- function(x) {
   list(
-    n_nonmissing = sum(!is.na(x)),
-    n_missing    = n_miss,
-    missing_pct  = miss_pct,
-    median       = round(median(x, na.rm = TRUE), 3),
-    p25          = round(quantile(x, 0.25, na.rm = TRUE), 3),
-    p75          = round(quantile(x, 0.75, na.rm = TRUE), 3)
+    n_missing = sum(is.na(x)),
+    median    = median(x, na.rm = TRUE),
+    p25       = quantile(x, 0.25, na.rm = TRUE),
+    p75       = quantile(x, 0.75, na.rm = TRUE)
   )
 }
 
-build_summary <- function(var_map) {
-  rows <- lapply(names(var_map), function(var) {
-    label <- var_map[[var]]
-    if (!var %in% names(dt)) return(NULL)
-    out <- data.frame(label = label, stringsAsFactors = FALSE)
-    for (city in c("LA", "NYC")) {
-      x <- dt[[var]][dt$city == city]
-      s <- summarise_var(x)
-      out[[paste0(city, "_n")]]        <- s$n_nonmissing
-      out[[paste0(city, "_n_miss")]]   <- s$n_missing
-      out[[paste0(city, "_miss_pct")]] <- s$missing_pct
-      out[[paste0(city, "_median")]]   <- s$median
-      out[[paste0(city, "_p25")]]      <- s$p25
-      out[[paste0(city, "_p75")]]      <- s$p75
-    }
-    out
-  })
-  bind_rows(rows)
-}
-
-fmt_cell <- function(median, p25, p75, n_miss) {
-  cell <- paste0(median, " [", p25, ", ", p75, "]")
-  if (n_miss > 0) {
-    cell <- paste0(cell, "\\textsuperscript{*}")
+# variable, city -> raw stats
+row_stats <- function(var, transform = identity) {
+  out <- list()
+  for (city in c("LA", "NYC")) {
+    x <- transform(dt[[var]][dt$city == city])
+    out[[city]] <- stats_for(x)
   }
-  cell
+  out
 }
 
-write_table <- function(summary_tbl, caption, label,
-                        csv_path, tex_path,
-                        section_breaks = NULL) {
-  write_csv(summary_tbl, csv_path)
-
-  nyc_col <- paste0(
-    "NYC ($n$ = ",
-    formatC(city_n[["NYC"]], format = "d", big.mark = "{,}"),
-    ")"
+fmt_num <- function(s, dp) {
+  sprintf(
+    paste0("%.", dp, "f [%.", dp, "f, %.", dp, "f]"),
+    s$median, s$p25, s$p75
   )
-  la_col <- paste0(
-    "LA ($n$ = ",
-    formatC(city_n[["LA"]], format = "d", big.mark = "{,}"),
-    ")"
+}
+
+fmt_pct <- function(s) {
+  sprintf(
+    "%.1f\\%% [%.1f\\%%, %.1f\\%%]",
+    100 * s$median, 100 * s$p25, 100 * s$p75
   )
+}
 
-  header <- paste(
-    "\\begin{table}[ht]",
-    "\\centering",
-    paste0("\\caption{", caption, "}"),
-    paste0("\\label{", label, "}"),
-    "\\small",
-    "\\begin{tabular}{lcc}",
-    "\\toprule",
-    paste0("Variable & ", la_col, " & ", nyc_col, " \\\\"),
-    "\\midrule",
-    sep = "\n"
-  )
-
-  body_lines <- character(0)
-
-  for (i in seq_len(nrow(summary_tbl))) {
-    if (!is.null(section_breaks) && i %in% section_breaks) {
-      sec_name <- names(section_breaks)[section_breaks == i]
-      body_lines <- c(
-        body_lines,
-        paste0(
-          "\\multicolumn{3}{l}{\\textbf{", sec_name, "}} \\\\"
-        )
-      )
-    }
-    row      <- summary_tbl[i, ]
-    nyc_cell <- fmt_cell(
-      row$NYC_median, row$NYC_p25, row$NYC_p75, row$NYC_n_miss
+# ---- Rows: variable name, formatter, decimal places / transform, footnote letter ----
+rows <- list(
+  list(
+    section = "Outcomes",
+    label   = "Neighboring-home visits (annual avg count)",
+    stats   = row_stats("neighbor_visit_count_annual_avg"),
+    fmt     = function(s) fmt_num(s, 0),
+    footnote_letter = "a",
+    footnote_text = paste0(
+      "Neighboring-home visits: census tracts without a destination ",
+      "census block group intersecting an accessible green space (see ",
+      "Methods) were excluded from the analysis: LA $n$ = %s, NYC $n$ = %s."
     )
-    la_cell <- fmt_cell(
-      row$LA_median, row$LA_p25, row$LA_p75, row$LA_n_miss
+  ),
+  list(
+    section = "Outcomes",
+    label   = "NDVI",
+    stats   = row_stats("NDVI"),
+    fmt     = function(s) fmt_num(s, 2),
+    footnote_letter = "b",
+    footnote_text = paste0(
+      "NDVI: values were obtained from an external greenness dataset ",
+      "\\cite{Brochu2022Benefits}, whose tract coverage excludes tracts ",
+      "with zero population aged 65 and older, negative mean NDVI, or ",
+      "county-level mortality-data suppression; tracts outside that ",
+      "coverage were excluded from this variable: LA $n$ = %s, NYC $n$ = %s."
     )
-    body_lines <- c(
-      body_lines,
+  ),
+  list(
+    section = "Outcomes",
+    label   = "Distance to nearest green space (m)",
+    stats   = row_stats("closest_greenspace"),
+    fmt     = function(s) fmt_num(s, 0),
+    footnote_letter = NA,
+    footnote_text = NA
+  ),
+  list(
+    section = "Exposure",
+    label   = "Community Severance Index",
+    stats   = row_stats("community_severance_index"),
+    fmt     = function(s) fmt_num(s, 2),
+    footnote_letter = "c",
+    footnote_text = "Missing Community Severance Index: LA $n$ = %s, NYC $n$ = %s."
+  ),
+  list(
+    section = "Covariates",
+    label   = "Percent Black",
+    stats   = row_stats("perc.black"),
+    fmt     = fmt_pct,
+    footnote_letter = "d",
+    footnote_text = "Missing Percent Black: LA $n$ = %s, NYC $n$ = %s."
+  ),
+  list(
+    section = "Covariates",
+    label   = "Percent Hispanic",
+    stats   = row_stats("perc.hisp"),
+    fmt     = fmt_pct,
+    footnote_letter = "e",
+    footnote_text = "Missing Percent Hispanic: LA $n$ = %s, NYC $n$ = %s."
+  ),
+  list(
+    section = "Covariates",
+    label   = "Percent poverty",
+    stats   = row_stats("perc.pov"),
+    fmt     = fmt_pct,
+    footnote_letter = "f",
+    footnote_text = "Missing Percent poverty: LA $n$ = %s, NYC $n$ = %s."
+  ),
+  list(
+    section = "Covariates",
+    label   = "Population density (thousands per km\\textsuperscript{2})",
+    stats   = row_stats("pop_dens", transform = function(x) x / 1000),
+    fmt     = function(s) fmt_num(s, 2),
+    footnote_letter = NA,
+    footnote_text = NA
+  ),
+  list(
+    section = "Covariates",
+    label   = "Building density (footprint/tract area)",
+    stats   = row_stats("building_density"),
+    fmt     = function(s) fmt_num(s, 2),
+    footnote_letter = NA,
+    footnote_text = NA
+  ),
+  list(
+    section = "Covariates",
+    label   = "ICE",
+    stats   = row_stats("ICE_inc"),
+    fmt     = function(s) fmt_num(s, 2),
+    footnote_letter = "g",
+    footnote_text = "Missing ICE: LA $n$ = %s, NYC $n$ = %s."
+  )
+)
+
+nyc_col <- paste0(
+  "NYC ($n$ = ", formatC(city_n[["NYC"]], format = "d", big.mark = ","), ")"
+)
+la_col <- paste0(
+  "LA ($n$ = ", formatC(city_n[["LA"]], format = "d", big.mark = ","), ")"
+)
+
+header <- c(
+  "\\begin{table}[ht]",
+  "\\centering",
+  paste0(
+    "\\caption{Descriptive statistics for the study outcomes, exposure, ",
+    "and covariates in the 2019 analytic sample, separately for LA and ",
+    "NYC. Values are median [P25, P75].}"
+  ),
+  "\\label{tab:outcomes_exposure_covariates_descriptives}",
+  "\\small",
+  "\\begin{tabular}{lcc}",
+  "\\toprule",
+  paste0("Variable & ", la_col, " & ", nyc_col, " \\\\"),
+  "\\midrule"
+)
+
+body <- character(0)
+footnotes <- character(0)
+current_section <- ""
+
+for (row in rows) {
+  if (row$section != current_section) {
+    body <- c(body, paste0("\\multicolumn{3}{l}{\\textbf{", row$section, "}} \\\\"))
+    current_section <- row$section
+  }
+
+  la_cell  <- row$fmt(row$stats[["LA"]])
+  nyc_cell <- row$fmt(row$stats[["NYC"]])
+
+  label <- row$label
+  if (!is.na(row$footnote_letter)) {
+    label <- paste0(label, "\\textsuperscript{", row$footnote_letter, "}")
+    footnotes <- c(
+      footnotes,
       paste0(
-        "\\quad ", row$label,
-        " & ", la_cell,
-        " & ", nyc_cell, " \\\\"
+        "\\multicolumn{3}{p{0.9\\textwidth}}{\\textsuperscript{",
+        row$footnote_letter, "}",
+        sprintf(
+          row$footnote_text,
+          row$stats[["LA"]]$n_missing, row$stats[["NYC"]]$n_missing
+        ),
+        "} \\\\"
       )
     )
   }
 
-  miss_rows <- summary_tbl$NYC_n_miss > 0 | summary_tbl$LA_n_miss > 0
-  if (any(miss_rows)) {
-    miss_parts <- vapply(which(miss_rows), function(i) {
-      row <- summary_tbl[i, ]
-      parts <- character(0)
-      if (row$LA_n_miss  > 0) parts <- c(parts, paste0("LA $n$ = ",  row$LA_n_miss))
-      if (row$NYC_n_miss > 0) parts <- c(parts, paste0("NYC $n$ = ", row$NYC_n_miss))
-      paste0(row$label, " (", paste(parts, collapse = ", "), ")")
-    }, character(1))
-    footnote <- paste0(
-      "\\multicolumn{3}{p{0.9\\textwidth}}{",
-      "\\textsuperscript{*}Missing: ",
-      paste(miss_parts, collapse = "; "),
-      ".} \\\\"
-    )
-  } else {
-    footnote <- ""
-  }
-
-  footer <- paste(
-    "\\bottomrule",
-    if (nchar(footnote) > 0) footnote else "",
-    "\\end{tabular}",
-    "\\end{table}",
-    sep = "\n"
-  )
-
-  writeLines(c(header, body_lines, footer), tex_path)
+  body <- c(body, paste0("\\quad ", label, " & ", la_cell, " & ", nyc_cell, " \\\\"))
 }
 
-# ---- Table 1: Outcomes ----
-tbl1 <- build_summary(outcomes_map)
-
-write_table(
-  summary_tbl = tbl1,
-  caption     = paste0(
-    "Descriptive statistics for study outcomes in the 2019 ",
-    "analytic sample, separately for LA and NYC. ",
-    "Values are median [P25, P75]."
-  ),
-  label    = "tab:outcomes_descriptives",
-  csv_path = paste0(output.folder, "table1_outcomes_", output_label, ".csv"),
-  tex_path = paste0(output.folder, "table1_outcomes_", output_label, ".tex")
+footer <- c(
+  "\\bottomrule",
+  footnotes,
+  "\\end{tabular}",
+  "\\end{table}"
 )
 
-message(
-  "Table 1 (outcomes) saved to: ",
-  output.folder, "table1_outcomes_", output_label, ".{csv,tex}"
-)
+latex_lines <- c(header, body, footer)
 
-# ---- Table 2: Exposure and Covariates ----
-tbl2 <- build_summary(exposure_covariates_map)
+tex_path <- paste0(output.folder, "table1_descriptives_", output_label, ".tex")
+writeLines(latex_lines, tex_path)
+message("Table 1 (outcomes, exposure & covariates) saved to: ", tex_path)
 
-write_table(
-  summary_tbl    = tbl2,
-  caption        = paste0(
-    "Descriptive statistics for the exposure and covariates ",
-    "in the 2019 analytic sample, separately for LA and NYC. ",
-    "Values are median [P25, P75]."
-  ),
-  label          = "tab:exposure_covariates_descriptives",
-  csv_path       = paste0(
-    output.folder, "table2_exposure_covariates_", output_label, ".csv"
-  ),
-  tex_path       = paste0(
-    output.folder, "table2_exposure_covariates_", output_label, ".tex"
-  ),
-  section_breaks = tbl2_breaks
+ms_tables_path <- paste0(
+  project.folder, "manuscript/tables/table1_descriptives_", output_label, ".tex"
 )
-
-message(
-  "Table 2 (exposure & covariates) saved to: ",
-  output.folder, "table2_exposure_covariates_", output_label, ".{csv,tex}"
-)
+file.copy(tex_path, ms_tables_path, overwrite = TRUE)
+message("Copied to: ", ms_tables_path)

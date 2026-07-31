@@ -105,12 +105,16 @@ compute_q75_q25_irr <- function(model, dt_stratum, ice_stratum_label, city_label
   lo_lp   <- est_lp - 1.96 * se_lp
   hi_lp   <- est_lp + 1.96 * se_lp
 
+  s_table <- summary(model)$s.table
+  csi_edf <- round(s_table["s(community_severance_index)", "edf"], 3)
+
   tibble(
     ice_stratum = ice_stratum_label,
     city        = city_label,
     n_tracts    = nrow(dt_stratum),
     csi_q25     = round(q25, 3),
     csi_q75     = round(q75, 3),
+    edf         = csi_edf,
     irr         = round(exp(est_lp), 3),
     ci_low_95   = round(exp(lo_lp), 3),
     ci_high_95  = round(exp(hi_lp), 3)

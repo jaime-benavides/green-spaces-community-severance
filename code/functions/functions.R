@@ -1404,10 +1404,10 @@ plot_smooth_gam <- function(model_list,
 
   # --- Response variable → y-axis label ---
   response_label_map <- c(
-    neighbor_visit_count_annual_avg = "Neighboring-home visit rate (annual average)",
+    neighbor_visit_count_annual_avg = "Neighboring-home visit rate ratio (RR)",
     neighbor_visit_share_annual_avg = "Neighboring-home visit share (annual average)",
     NDVI                            = "NDVI",
-    closest_greenspace              = "Distance to nearest green space (m)"
+    closest_greenspace              = "Distance to nearest green space (ratio of predicted mean distance)"
   )
 
   # --- Helper: flatten nested lists of GAMs ---
@@ -1560,14 +1560,16 @@ plot_city_comparison <- function(model_list, log_y = FALSE, rug = TRUE,
   patchwork::wrap_plots(plots)
 }
 
-# Reference level for an ICE-stratum model: the linear predictor evaluated
-# with the CSI smooth and the neighborhood random effect held at their
-# average (zero) contribution, but the other adjustment covariates set to
-# their stratum-specific means rather than zero. This is added back to the
-# (zero-centered) CSI smooth so plotted/reported curves are expressed
-# relative to a typical tract in that stratum, not an unrealistic tract with
-# all covariates equal to zero.
-ice_reference_level <- function(model) {
+# Reference level for a GAM(M): the linear predictor evaluated with the CSI
+# smooth and the neighborhood random effect held at their average (zero)
+# contribution, but the other adjustment covariates set to the fitted
+# model's own mean values rather than zero. This is added back to the
+# (zero-centered) CSI smooth in plot_ice_overlay() so the Q1/Q5 curves are
+# expressed as absolute predicted values for a typical tract in that
+# stratum, not an unrealistic tract with all covariates equal to zero.
+# Renamed from ice_reference_level() since the underlying computation is
+# not ICE-specific, only its current caller is.
+gam_reference_level <- function(model) {
   dt <- model$model
   adj_cols <- intersect(
     c("pop_dens", "perc.black", "perc.hisp", "perc.pov", "building_density"),
@@ -1599,14 +1601,21 @@ plot_ice_overlay <- function(fits_q1, fits_q5,
                              smooth_term = "s(community_severance_index)",
                              rug = TRUE,
                              y_limits = NULL,
-                             show_title = TRUE) {
+                             show_title = TRUE,
+                             log_y = FALSE) {
 
   city_label_map <- c(nyc = "New York City", la = "Los Angeles")
+  # Same centered ratio/RR scale as plot_smooth_gam() (Figures 2/3), so a
+  # coauthor comparing this ICE-stratified figure to the main-analysis
+  # figures is reading the same axis quantity for a given outcome. No
+  # stratum intercept is added back (that would plot absolute predicted
+  # levels and reintroduce an implied Q1-vs-Q5 baseline-level comparison,
+  # which is out of scope for this study — see CODE_REVIEW.md).
   response_label_map <- c(
-    neighbor_visit_count_annual_avg = "Neighboring-home visit rate (annual average)",
+    neighbor_visit_count_annual_avg = "Neighboring-home visit rate ratio (RR)",
     neighbor_visit_share_annual_avg = "Neighboring-home visit share (annual average)",
     NDVI                            = "NDVI",
-    closest_greenspace              = "Distance to nearest green space (m)"
+    closest_greenspace              = "Distance to nearest green space (ratio of predicted mean distance)"
   )
 
   cities <- intersect(names(fits_q1), names(fits_q5))
@@ -1625,27 +1634,20 @@ plot_ice_overlay <- function(fits_q1, fits_q5,
       linkinv  <- mod_q1$family$linkinv
       response_var <- as.character(formula(mod_q1))[2]
 
-      intercept_q1 <- ice_reference_level(mod_q1)
-      intercept_q5 <- ice_reference_level(mod_q5)
-
-      transform <- function(x, intercept) {
-        if (grepl("gaussian", fam_name, ignore.case = TRUE)) {
-          x + intercept
-        } else {
-          linkinv(x + intercept)
-        }
+      transform <- function(x) {
+        if (grepl("gaussian", fam_name, ignore.case = TRUE)) x else linkinv(x)
       }
 
       sm_q1 <- sm_q1 |> dplyr::mutate(
-        est   = transform(.estimate, intercept_q1),
-        lower = transform(.lower_ci, intercept_q1),
-        upper = transform(.upper_ci, intercept_q1),
+        est   = transform(.estimate),
+        lower = transform(.lower_ci),
+        upper = transform(.upper_ci),
         group = "Q1 (Most Disadvantaged)"
       )
       sm_q5 <- sm_q5 |> dplyr::mutate(
-        est   = transform(.estimate, intercept_q5),
-        lower = transform(.lower_ci, intercept_q5),
-        upper = transform(.upper_ci, intercept_q5),
+        est   = transform(.estimate),
+        lower = transform(.lower_ci),
+        upper = transform(.upper_ci),
         group = "Q5 (Most Advantaged)"
       )
       sm <- dplyr::bind_rows(sm_q1, sm_q5)
@@ -1659,6 +1661,8 @@ plot_ice_overlay <- function(fits_q1, fits_q5,
         response_label_map[[response_var]]
       } else response_var
 
+      baseline <- if (grepl("gaussian", fam_name, ignore.case = TRUE)) 0 else 1
+
       palette <- c("Q1 (Most Disadvantaged)" = "#c0392b",
                    "Q5 (Most Advantaged)"    = "#2980b9")
 
@@ -1667,6 +1671,8 @@ plot_ice_overlay <- function(fits_q1, fits_q5,
         geom_ribbon(aes(ymin = lower, ymax = upper),
                     alpha = 0.15, color = NA) +
         geom_line(linewidth = 1.5) +
+        geom_hline(yintercept = baseline,
+                   linetype = "dashed", color = "grey40", linewidth = 0.9) +
         scale_color_manual(values = palette, name = NULL) +
         scale_fill_manual(values  = palette, name = NULL) +
         labs(
@@ -1683,6 +1689,7 @@ plot_ice_overlay <- function(fits_q1, fits_q5,
           plot.margin   = margin(8, 12, 8, 8)
         )
 
+      if (log_y) p <- p + scale_y_log10()
       if (!is.null(y_limits)) p <- p + coord_cartesian(ylim = y_limits)
 
       if (rug) {

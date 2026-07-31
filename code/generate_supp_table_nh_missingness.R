@@ -74,6 +74,7 @@ build_city_subtable <- function(city_label, city_name, label_suffix) {
     "\\centering",
     paste0("\\subcaption{", city_name, "}"),
     paste0("\\label{tab:nh_missingness_", label_suffix, "}"),
+    "\\small",
     "\\begin{tabular}{lcc}",
     "\\toprule",
     "Characteristic & Excluded tracts & Analytic sample \\\\",
@@ -158,7 +159,10 @@ outer_footer <- c(
     "{\\footnotesize IQR = interquartile range. ICE = Index of ",
     "Concentration at the Extremes. NDVI = Normalized Difference ",
     "Vegetation Index. Continuous variables presented as median ",
-    "(Q1, Q3).}"
+    "(Q1, Q3). \\textsuperscript{*}ICE income quintile was missing for a ",
+    "small number of tracts in each group (LA: 5 excluded, 7 analytic; ",
+    "NYC: 11 excluded, 37 analytic) and is not shown as a separate row; ",
+    "quintile counts therefore do not sum to the column $n$.}"
   ),
   "\\end{table}"
 )

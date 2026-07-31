@@ -106,8 +106,8 @@ make_panel <- function(sf_data, var, palette, city_title,
     tm_legend(title = legend_title,
               position = tm_pos_out("right", "center"),
               frame = FALSE,
-              item.height = 0.5, item.width = 0.5,
-              text.size = 0.55, title.size = 0.65)
+              item.height = 1.1, item.width = 1.1,
+              text.size = 1.1, title.size = 1.3)
   } else {
     tm_legend(show = FALSE)
   }
@@ -142,8 +142,8 @@ make_panel_cat <- function(sf_data, var, palette_vals, cat_labels, city_title,
     tm_legend(title = legend_title,
               position = tm_pos_out("right", "center"),
               frame = FALSE,
-              item.height = 0.55, item.width = 0.55,
-              text.size = 0.6, title.size = 0.7)
+              item.height = 1.2, item.width = 1.2,
+              text.size = 1.2, title.size = 1.4)
   } else {
     tm_legend(show = FALSE)
   }
@@ -311,7 +311,8 @@ p_ice_q1q5_nyc <- make_panel_cat(sf_nyc_ice, "ice_q1q5", ice_pal, ice_labels,
                                    "New York City", show_legend = TRUE,
                                    legend_title = "")
 
-supp_ice_q1q5 <- tmap_arrange(p_ice_q1q5_la, p_ice_q1q5_nyc, nrow = 1, ncol = 2)
+supp_ice_q1q5 <- tmap_arrange(p_ice_q1q5_la, p_ice_q1q5_nyc, nrow = 1, ncol = 2,
+                               widths = c(1, 1.7))
 
 save_tmap(supp_ice_q1q5,
           paste0(output.folder, "supp_map_ice_q1_q5.png"),
@@ -331,7 +332,7 @@ save_supp_map <- function(var, palette, leg_title,
   p_nyc <- make_panel(sf_nyc, var, palette, "New York City",
                       show_legend = TRUE, legend_title = leg_title,
                       reverse = reverse)
-  out <- tmap_arrange(p_la, p_nyc, nrow = 1, ncol = 2)
+  out <- tmap_arrange(p_la, p_nyc, nrow = 1, ncol = 2, widths = c(1, 1.7))
   save_tmap(out, paste0(output.folder, fname), width = width, height = height)
   file.copy(paste0(output.folder, fname),
             paste0(manuscript.folder, "figs/", fname), overwrite = TRUE)

@@ -22,7 +22,7 @@ library(readr)
 #          fitted value at a given CSI is intercept + s(CSI), with all other
 #          covariates held at their stratum-specific means (rather than
 #          zero), matching the convention used for Figure 4 / fig:ice_combined
-#          (see ice_reference_level() and plot_ice_overlay() in functions.R):
+#          (see gam_reference_level() and plot_ice_overlay() in functions.R):
 #          a zero-covariate tract is an unrealistic reference point, so the
 #          model intercept is replaced with intercept + covariate effects
 #          evaluated at the stratum's mean covariate values, added to the
@@ -75,7 +75,7 @@ compute_ice_gap_contrasts <- function(mod_q1, mod_q5, csi_quartiles,
   }
 
   # newdata template: adjustment covariates at the stratum's own means
-  # (rather than zero), matching the convention in ice_reference_level()
+  # (rather than zero), matching the convention in gam_reference_level()
   # (functions.R) used to render Figure 4 / fig:ice_combined
   adj_cols <- c("pop_dens", "perc.black", "perc.hisp", "perc.pov", "building_density")
 

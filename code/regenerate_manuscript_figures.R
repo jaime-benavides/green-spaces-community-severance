@@ -63,42 +63,21 @@ save_fig(
 )
 
 # ---- ICE Q1/Q5 combined figure (Fig 4): NH (top), NDVI (middle), proximity (bottom) ----
-# Uses plot_ice_overlay() so intercepts are added back and Q1/Q5 are shown at
-# absolute predicted values on a shared y-axis within each row.
+# Uses plot_ice_overlay() on the same centered ratio/RR scale as
+# plot_smooth_gam() (Figures 2/3, via compute_shared_ylim()), so a coauthor
+# comparing this ICE-stratified figure against the main-analysis figures is
+# reading the same axis quantity for a given outcome. log_y matches the
+# corresponding main figure's setting per outcome (see below).
 ndvi_ice_path <- paste0(generated.data.folder, "ndvi_ice_q1_q5_fit.rds")
 gs_ice_path   <- paste0(generated.data.folder, "greenspace_ice_q1_q5_fit.rds")
-
-# Compute shared y-limits from absolute predicted values (smooth + intercept)
-ice_ylim <- function(q1_list, q5_list,
-                     smooth_term = "s(community_severance_index)") {
-  all_vals <- unlist(lapply(names(q1_list), function(city) {
-    m1 <- q1_list[[city]]; m5 <- q5_list[[city]]
-    int1 <- ice_reference_level(m1); int5 <- ice_reference_level(m5)
-    linkinv <- m1$family$linkinv
-    fam     <- m1$family$family
-    trf <- function(x, int) {
-      if (grepl("gaussian", fam, ignore.case = TRUE)) x + int
-      else linkinv(x + int)
-    }
-    sm1 <- gratia::smooth_estimates(m1, smooth = smooth_term) |>
-      gratia::add_confint()
-    sm5 <- gratia::smooth_estimates(m5, smooth = smooth_term) |>
-      gratia::add_confint()
-    c(trf(sm1$.lower_ci, int1), trf(sm1$.upper_ci, int1),
-      trf(sm5$.lower_ci, int5), trf(sm5$.upper_ci, int5))
-  }))
-  rng <- diff(range(all_vals, na.rm = TRUE))
-  c(min(all_vals, na.rm = TRUE) - 0.05 * rng,
-    max(all_vals, na.rm = TRUE) + 0.05 * rng)
-}
 
 # Wrap overlay plots: shared y-axis, right-panel y-label removed.
 # show_title is TRUE only for the top data row so the city names appear once,
 # above the combined figure, rather than repeated on every row.
-make_ice_row <- function(q1_list, q5_list, show_title = FALSE) {
-  ylim  <- ice_ylim(q1_list, q5_list)
+make_ice_row <- function(q1_list, q5_list, log_y = FALSE, show_title = FALSE) {
+  ylim  <- compute_shared_ylim(list(q1 = q1_list, q5 = q5_list))
   plots <- plot_ice_overlay(q1_list, q5_list, rug = TRUE, y_limits = ylim,
-                             show_title = show_title)
+                             show_title = show_title, log_y = log_y)
   if (length(plots) > 1)
     plots[[length(plots)]] <- plots[[length(plots)]] +
       ggplot2::theme(axis.title.y = ggplot2::element_blank())
@@ -117,9 +96,9 @@ if (file.exists(ndvi_ice_path) && file.exists(gs_ice_path)) {
 
   save_fig(
     patchwork::wrap_elements(shared_legend) /
-    make_ice_row(nh_ice$q1,   nh_ice$q5,   show_title = TRUE) /
-    make_ice_row(ndvi_ice$q1, ndvi_ice$q5, show_title = FALSE) /
-    make_ice_row(gs_ice$q1,   gs_ice$q5,   show_title = FALSE) +
+    make_ice_row(nh_ice$q1,   nh_ice$q5,   log_y = TRUE,  show_title = TRUE) /
+    make_ice_row(ndvi_ice$q1, ndvi_ice$q5, log_y = FALSE, show_title = FALSE) /
+    make_ice_row(gs_ice$q1,   gs_ice$q5,   log_y = TRUE,  show_title = FALSE) +
     patchwork::plot_layout(heights = c(0.12, 1, 1, 1)),
     paste0(output.folder, "models_result_ice_q1_q5_combined.png"),
     width = 1400, height = 1800
