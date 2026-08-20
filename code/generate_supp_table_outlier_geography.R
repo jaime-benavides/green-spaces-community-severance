@@ -16,10 +16,9 @@ library(sf)
 #          Builds the supplementary table answering this: tract area,
 #          population density, building density, and CSI, compared between
 #          outlier and within-range tracts, by city. (Distance to the city
-#          boundary is deliberately excluded here -- see
-#          diagnose_outlier_tract_geography.R -- because it is sensitive to
-#          which tracts define the city union polygon and is not a robust
-#          number to publish.)
+#          boundary is deliberately excluded here because it is sensitive
+#          to which tracts define the city union polygon and is not a
+#          robust number to publish.)
 #
 #          The |z_CSI| > 2 rule flags both tails of the CSI distribution.
 #          In LA, all outlier tracts are high-CSI (z > 2); in NYC, outliers

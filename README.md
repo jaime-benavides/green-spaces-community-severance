@@ -5,46 +5,50 @@ note: please run init_directory_structure.R first to create folders. Also run th
 
 ## Code and data generated (file name - short description)
 
+Scripts are labeled with their pipeline step, in run order. Steps with a letter suffix
+(5b, 7b-7e, 8a-8k) run in parallel branches off the numbered step they extend, not strictly
+sequentially, but always after the step whose number they share and before the next integer step.
+
 ### Data preparation list:
 
-prep_ses.R - ACS tract-level socioeconomic indicators and Index of Concentration at the Extremes (ICE)
+Step 1. prep_ses.R - ACS tract-level socioeconomic indicators and Index of Concentration at the Extremes (ICE)
 
 - ses_ice_nyc.rds, ses_ice_la.rds - SES variables with sf geometry
 - krieger_ice_nyc.rds, krieger_ice_la.rds - ICE indices
 - acs_ses.rds - ACS summary object
 
-prep_csi.R - population-weighted Community Severance Index (CSI) aggregation to census tract
+Step 2. prep_csi.R - population-weighted Community Severance Index (CSI) aggregation to census tract
 
 - community_severance_nyc_census_tract.rds
 - community_severance_la_census_tract.rds
 
-prep_greenspace.R - NDVI and Euclidean distance to nearest public green space
+Step 3. prep_greenspace.R - NDVI and Euclidean distance to nearest public green space
 
 - ndvi_nyc_census_tract.rds, ndvi_la_census_tract.rds
 - cs_access_euclidean_nyc.rds, cs_access_euclidean_la.rds
 
-prep_building_density.R - tract-level building density
+Step 4. prep_building_density.R - tract-level building density
 
 - building_dens_nyc.rds, building_dens_la.rds
 
-prep_cbg_nh_combined.R - merges primary and supplementary Advan CBG-level neighboring-home (NH) files
+Step 5b. prep_cbg_nh_combined.R - merges primary and supplementary Advan CBG-level neighboring-home (NH) files
 
 - 2019_full_year_neighbor_home_nyc_la_cbg_combined.csv - single canonical CBG-level NH input for all downstream processing
 
-prep_neighbor_visits_annual_average.R - aggregates NH visits to tract-level annual averages; restricts to green-space CBGs
+Step 6. prep_neighbor_visits_annual_average.R - aggregates NH visits to tract-level annual averages; restricts to green-space CBGs
 
 - data_models_neighbor_visits_annual_average_2019_full_year.rds - full modeling dataset joined with NH metrics
 - neighbor_visit_annual_average_2019_full_year_tract.rds / .csv - tract-level NH metrics (green-space CBGs only)
 
 ### Statistical models list:
 
-models_linear.R - NDVI (Gaussian GAM) and proximity (Gamma GAM) models
+Step 5. models_linear.R - NDVI (Gaussian GAM) and proximity (Gamma GAM) models
 
 - data_models.rds - base modeling dataset (N=3,312 tracts; NYC=2,164, LA=1,148)
 - ndvi_model_objects_city_adjusted_linear.rds, ndvi_model_objects_city_crude_linear.rds
 - greenspace_model_objects_city_adjusted_linear.rds, greenspace_model_objects_city_crude_linear.rds
 
-models_neighbor_visits_annual_average.R - neighboring-home visits GAMs (negative binomial)
+Step 7. models_neighbor_visits_annual_average.R - neighboring-home visits GAMs (negative binomial)
 
 - neighbor_visit_annual_average_model_objects_2019_full_year.rds - all model objects
 - neighbor_visit_primary_fit_city_{nyc,la}_2019_full_year.rds - adjusted models
@@ -55,63 +59,63 @@ run_neighbor_visits_workflow.R - orchestrates prep_neighbor_visits_annual_averag
 
 ### Figures and tables list:
 
-generate_nh_ice_q1_q5_figure.R - NH ICE Q1/Q5 stratified figure
+Step 7b. generate_nh_ice_q1_q5_figure.R - NH ICE Q1/Q5 stratified figure
 
 - models_result_neighbor_visit_q1_q5_ICE_inc_2019_full_year.png - NH ICE model object source (combined into Fig 4)
 
-generate_linear_ice_outl_figures.R - NDVI/proximity ICE Q1/Q5 and outlier-excluded figures (primary manuscript figures)
+Step 7c. generate_linear_ice_outl_figures.R - NDVI/proximity ICE Q1/Q5 and outlier-excluded figures (primary manuscript figures)
 
 - ndvi_ice_q1_q5_fit.rds, greenspace_ice_q1_q5_fit.rds - ICE Q1/Q5 model objects (used for Fig 4)
 - models_result_ndvi_proximity_primary.png - Figure 3
 - models_result_neighbor_visit_annual_avg_no_outliers_2019_full_year.png - Figure 2
 
-regenerate_manuscript_figures.R - regenerates all manuscript smooth figures from saved model objects (no re-fitting), including Figure 4 and sensitivity Figures S3/S4
+Step 7e. regenerate_manuscript_figures.R - regenerates all manuscript smooth figures from saved model objects (no re-fitting), including Figure 4 and sensitivity Figures S3/S4
 
-generate_figure1_maps.R - Figure 1 and supplementary spatial maps
+Step 7d. generate_figure1_maps.R - Figure 1 and supplementary spatial maps
 
 - figure1_nh_csi_maps.png - Figure 1
 - supp_map_ice_inc.png - Figure S1, panel (a)
 - supp_map_ice_q1_q5.png - Figure S1, panel (b)
 
-table1_outcome_descriptives_neighbor_visits.R - Table 1 (outcomes, exposure & covariates)
+Step 8a. table1_outcome_descriptives_neighbor_visits.R - Table 1 (outcomes, exposure & covariates)
 
 - table1_descriptives_2019_full_year.tex
 
-generate_supp_table_nh_missingness.R - Supplementary Table S1 (missing vs. analytic sample)
+Step 8b2. generate_supp_table_nh_missingness.R - Supplementary Table S1 (missing vs. analytic sample); reads `nh_exclusion_reason_diagnosis.csv` from `diagnose_nh_exclusion_reason.R` (Step 8b1, listed under Diagnostics below)
 
 - supp_table_nh_missingness.tex
 
-extract_numeric_results.R - Q25-to-Q75 quartile contrasts, the source of Table S2 and Results-text numbers
+Step 8c. extract_numeric_results.R - Q25-to-Q75 quartile contrasts, the source of Table S2 and Results-text numbers
 
 - numeric_results_quartile_contrasts.csv
 
-generate_supp_table_s2_per_iqr.R - Supplementary Table S2, generated from numeric_results_quartile_contrasts.csv
+Step 8c2. generate_supp_table_s2_per_iqr.R - Supplementary Table S2, generated from numeric_results_quartile_contrasts.csv
 
-extract_outlier_exclusion_counts.R - "excluded tracts" numbers cited in-text
+Step 8d. extract_outlier_exclusion_counts.R - "excluded tracts" numbers cited in-text
 
-extract_tract_area_by_city.R - tract area by city, context for the LA-vs-NYC distance comparison
+Step 8e. extract_tract_area_by_city.R - tract area by city, context for the LA-vs-NYC distance comparison
 
-generate_supp_table_outlier_geography.R - Supplementary Table S3 (outlier-tract geography and built environment)
+Step 8f. generate_supp_table_outlier_geography.R - Supplementary Table S3 (outlier-tract geography and built environment)
 
-generate_nh_distribution_figure.R - NH visits distribution figure (Fig S2a)
+Step 8g. generate_nh_distribution_figure.R - NH visits distribution figure (Fig S2a)
 
-extract_ice_nh_quartile_contrasts.R, extract_ice_ndvi_quartile_contrasts.R, extract_ice_distance_quartile_contrasts.R, extract_ice_effect_modification_contrasts.R, extract_ice_effect_modification_difference_contrasts.R - ICE-stratified (Q1/Q5) quartile contrasts and effect-modification statistics cited in §3.5
+Step 8h. extract_ice_nh_quartile_contrasts.R, extract_ice_ndvi_quartile_contrasts.R, extract_ice_distance_quartile_contrasts.R - ICE-stratified (Q1/Q5) quartile contrasts cited in §3.5
 
-extract_manuscript_misc_counts.R - missingness/sample-size counts cited in-text
+Step 8i. extract_ice_effect_modification_contrasts.R - ICE effect-modification statistics cited in §3.5
 
-run_manuscript_audit.R - reruns every extraction/diagnostic script feeding code/audit_manifest.csv and checks each numeric claim in sn-article.tex against its computed source value
+Step 8j. extract_ice_effect_modification_difference_contrasts.R - reads the three Step 8h CSVs to compute Q5-vs-Q1 difference contrasts, cited in §3.5
+
+Step 8k. extract_manuscript_misc_counts.R - missingness/sample-size counts cited in-text; reads Step 8d's output
+
+Step 9. run_manuscript_audit.R - reruns every extraction/diagnostic script feeding code/audit_manifest.csv and checks each numeric claim in sn-article.tex against its computed source value
 
 - output/manuscript_audit_results.csv
 
-### Diagnostics list (not part of the manuscript pipeline):
+### Diagnostics list (not part of the manuscript pipeline, except as noted):
 
-table_distribution_missingness_neighbor_visits.R - diagnostic variable-distribution table
+Step 8b1. diagnose_nh_exclusion_reason.R - diagnoses NH exclusion reasons; **its output is a required input to Step 8b2** (`generate_supp_table_nh_missingness.R`, Supplementary Table S1), so despite being framed as a diagnostic script it is part of the manuscript pipeline
 
-diagnose_ndvi_missing_reason.R, diagnose_nh_exclusion_reason.R, diagnose_outlier_tract_geography.R - diagnose exclusion/missingness reasons behind analytic-sample counts
-
-inspect_nh_missingness.R, inspect_table2_missingness.R - missingness inspection utilities
-
-map_uncovered_cbgs_nh.R - maps CBGs without a qualifying green-space match
+Step 8l. inspect_table2_missingness.R - reproduces the check behind the Table 2 missingness footnote; **its output (`table2_missingness_diagnosis.csv`) is checked by Step 9's audit**, so despite being framed as a diagnostic script it is part of the manuscript pipeline
 
 ## Data (data) list:
 
