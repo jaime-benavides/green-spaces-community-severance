@@ -658,23 +658,6 @@ source("code/08f_generate_supp_table_outlier_geography.R")
 
 ---
 
-### Step 10 — Compile the manuscript
-
-From within the `manuscript/` directory:
-```bash
-cd manuscript
-pdflatex sn-article.tex
-bibtex sn-article
-pdflatex sn-article.tex
-pdflatex sn-article.tex
-```
-
-`sn-jnl.cls` already in `manuscript/`. Compile from within `manuscript/`. Figures at `figs/`, tables at `tables/` (both subdirectories of `manuscript/`) — all paths in the manuscript are relative to that directory.
-
-**Before compiling:** confirm Funding, Author Contributions, Code Availability, Acknowledgements placeholder text (see §Known Issues) are filled in.
-
----
-
 ## What you should have after running all steps
 
 ### Generated data files (all in `data/generated/`)
