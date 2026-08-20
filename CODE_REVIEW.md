@@ -707,73 +707,34 @@ source("code/08f_generate_supp_table_outlier_geography.R")
 
 ## Table 2 covariate missingness
 
-`code/08l_inspect_table2_missingness.R` (Step 8l) reproduces the check behind the Table 2 missingness footnote in the manuscript. For each covariate with missing values (CSI, Percent Black, Percent Hispanic, Percent poverty, ICE): share of missing-value tracts that are non-residential (population density = 0), mapped by city. Output: `output/table2_missingness_diagnosis.csv`, `output/table2_missingness_maps.png`. Checked by Step 9's audit against the manuscript footnote numbers.
-
-Percent Black/Hispanic/poverty missingness: 100% explained by non-residential (zero population-density) tracts, both cities (LA n=10, NYC n=40). CSI and ICE missingness only partially explained this way (CSI: 40% LA / 93% NYC zero-density; ICE: 83%/83%) — manuscript text scoped to avoid overclaiming one cause for all five covariates, see manuscript Table 2 paragraph. Missing tracts cluster in large non-residential zones (airport/wetland areas in NYC, park/reservoir areas in LA).
+`code/08l_inspect_table2_missingness.R` (Step 8l) reproduces the Table 2 missingness footnote check. Output: `output/table2_missingness_diagnosis.csv`, `output/table2_missingness_maps.png`. Checked by the manuscript audit below.
 
 ---
 
-## ICE-stratified (Q1/Q5) neighboring-home visits: quantified CSI decrease by stratum
+## ICE-stratified (Q1/Q5) extraction scripts
 
-`code/08h_extract_ice_nh_quartile_contrasts.R` quantifies stratum-specific CSI–neighboring-home-visits contrasts cited in the manuscript's Secondary analysis paragraph (CSI × neighboring-home visits effect modification by ICE income quintile). Rebuilds Q1 (most disadvantaged) / Q5 (most advantaged) stratum subsets exactly as `07_models_neighbor_visits_annual_average.R` (primary, outlier-excluded sample), loads stratified GAMs from `neighbor_visit_ice_q1_q5_fit_2019_full_year.rds`, computes CSI Q25-to-Q75 RR contrast per city × stratum via same lpmatrix/delta-method as `08c_extract_numeric_results.R`. Output: `output/numeric_results_ice_nh_quartile_contrasts.csv`.
+Quantify CSI slope/contrast within each ICE stratum (Q1 most disadvantaged, Q5 most advantaged), per city, feeding the manuscript's Secondary analysis paragraph and Fig 4.
 
-Results: LA — Q1 RR 0.92 (95% CI 0.84–0.99, n=93) vs. Q5 RR 0.91 (95% CI 0.82–1.02, n=153): nearly identical. NYC — Q1 RR 0.82 (95% CI 0.79–0.86, n=305) vs. Q5 RR 0.72 (95% CI 0.64–0.82, n=285): both strata decrease, steeper in most-advantaged stratum, CIs don't overlap — real (not noise-driven) difference in slope. Manuscript reports effect modification via the explicit Q5-vs-Q1 difference contrast (below), not CI overlap.
+| Script | Outcome | Output |
+|---|---|---|
+| `code/08h_extract_ice_nh_quartile_contrasts.R` | Neighboring-home visits | `output/numeric_results_ice_nh_quartile_contrasts.csv` |
+| `code/08h_extract_ice_ndvi_quartile_contrasts.R` | NDVI | `output/numeric_results_ice_ndvi_quartile_contrasts.csv` |
+| `code/08h_extract_ice_distance_quartile_contrasts.R` | Distance to green space | `output/numeric_results_ice_distance_quartile_contrasts.csv` |
+| `code/08j_extract_ice_effect_modification_difference_contrasts.R` | Explicit Q5-vs-Q1 contrast-of-contrasts, all three outcomes | `output/numeric_results_ice_effect_modification_difference_contrasts.csv` |
 
----
+`code/08i_extract_ice_effect_modification_contrasts.R` is a standalone diagnostic (Q1-vs-Q5 baseline gap, not part of the study design) — not cited by any manuscript number, doesn't feed a figure.
 
-## ICE-stratified (Q1/Q5) NDVI: quantified within-stratum shape
-
-`code/08h_extract_ice_ndvi_quartile_contrasts.R` quantifies the CSI–NDVI slope within each ICE stratum (Q1 most disadvantaged, Q5 most advantaged) per city, same lpmatrix/delta-method quartile-segment contrast approach as `08c_extract_numeric_results.R` (Q25-to-Q50, Q50-to-Q75, Q25-to-Q75, smooth centered at Q50), applied to each of the four stratum-city NDVI models (`ndvi_ice_q1_q5_fit.rds`, outlier-excluded sample, fit in `07c_generate_linear_ice_outl_figures.R`).
-
-`code/08i_extract_ice_effect_modification_contrasts.R` computes a related but distinct quantity: Q1-vs-Q5 baseline (level) gap between the two independently fit models, not the CSI slope within each. Not part of the study design — the study doesn't formally test the ICE–NDVI association (no regression of NDVI on ICE, no confounder adjustment for that comparison), and a difference in fitted intercepts across two independently fit stratum models isn't a tested association. Output (`numeric_results_ice_effect_modification.csv`) isn't cited by any manuscript number, doesn't feed any figure; retained as a standalone diagnostic only. Manuscript numbers for NDVI Q1-vs-Q5 effect modification come from `08j_extract_ice_effect_modification_difference_contrasts.R` instead (below).
-
-Results (`output/numeric_results_ice_ndvi_quartile_contrasts.csv`): LA — Q25-to-Q75 contrasts overlapped (Q1: −0.010, 95% CI −0.017 to −0.003; Q5: −0.015, 95% CI −0.026 to −0.004) — consistent magnitude, no evidence of effect modification. NYC — decrease larger in most-advantaged stratum (Q5: −0.022, 95% CI −0.043 to −0.001) than most-disadvantaged (Q1: −0.013, 95% CI −0.023 to −0.002), ~70% larger in magnitude; CIs overlap, so doesn't meet a strict non-overlapping-CI threshold, but suggestive of a steeper CSI–NDVI decrease among most-advantaged NYC tracts. A blanket "no effect modification" claim doesn't hold for NDVI in NYC. Manuscript reports this via the explicit Q5-minus-Q1 difference contrast with its own CI (below), not CI overlap.
-
-Manuscript's Secondary analysis paragraph reports the NYC-vs-LA NDVI shape difference using the Q25-to-Q75 estimate and CI per stratum/city (numbers above), per the general rule for narrative stratified/subgroup comparisons in `manuscript/writing_style_guide.md` §4.
+Figure 4 (`plot_ice_overlay()`, `code/functions/functions.R`) overlays each stratum's centered CSI smooth, same scale/axis convention as Figs 2/3, via `07e_regenerate_manuscript_figures.R`'s `make_ice_row()`.
 
 ---
 
-## ICE-stratified (Q1/Q5) distance to nearest green space: quantified CSI slope by stratum
+## Population totals cited in the Discussion
 
-`code/08h_extract_ice_distance_quartile_contrasts.R` quantifies the CSI-distance-to-nearest-green-space slope within each ICE stratum (Q1 most disadvantaged, Q5 most advantaged) per city, replacing a purely qualitative "Q5 decreased somewhat more steeply than Q1" claim in the manuscript's Secondary analysis paragraph. Same lpmatrix/delta-method quartile-segment contrast approach as `08c_extract_numeric_results.R` and `08h_extract_ice_ndvi_quartile_contrasts.R`, applied to the four stratum-city Gamma/log-link proximity models (`greenspace_ice_q1_q5_fit.rds`, outlier-excluded sample, fit in `07c_generate_linear_ice_outl_figures.R`), back-transformed to ratio scale.
-
-Results (`output/numeric_results_ice_distance_quartile_contrasts.csv`): LA — Q25-to-Q75 ratios comparable magnitude, both close to (Q1) or overlapping (Q5) the null (Q1: 1.12, 95% CI 1.01–1.24; Q5: 1.07, 95% CI 0.95–1.21) — no clear stratum difference. NYC — significant only in most economically advantaged stratum (Q5: 0.79, 95% CI 0.70–0.90), not in most deprived (Q1: 0.93, 95% CI 0.83–1.03); CIs overlap, doesn't meet a strict non-overlapping-CI threshold, but pattern (significant, steep decrease in Q5; null in Q1) is directionally consistent with effect modification in NYC. Manuscript's Secondary analysis paragraph states this explicitly with numbers rather than asserting "no clear evidence of effect modification" without quantification.
-
-Manuscript reports this via the explicit Q5-vs-Q1 ratio-of-ratios contrast with its own CI (below), not CI overlap.
-
----
-
-## ICE-stratified (Q1/Q5) effect modification: explicit Q1-vs-Q5 difference contrast with CI
-
-Secondary analysis paragraphs (NH visits, NDVI, distance) report effect modification as an explicit contrast-of-contrasts with its own 95% CI, rather than checking whether Q1/Q5 stratum-specific Q25-to-Q75 CSI-quartile-contrast CIs overlap — CI overlap is a known-conservative/imprecise heuristic (overlapping CIs can hide a real difference; non-overlapping CIs can overstate one). Two stratum models treated as independent (fit on disjoint tract subsets): `Var(delta) = Var(est_1) + Var(est_2)`, each stratum's SE recovered from its already-reported CI width. Mirrors the convention in the related PM2.5/SES paper (`bne_uncertainty_ses_multiyear`, `03_explore_results/contrast_main_rev.R`, `compute_strata_delta()`).
-
-`code/08j_extract_ice_effect_modification_difference_contrasts.R` implements this: reads the three existing per-stratum quartile-contrast CSVs (`numeric_results_ice_nh_quartile_contrasts.csv`, `numeric_results_ice_ndvi_quartile_contrasts.csv`, `numeric_results_ice_distance_quartile_contrasts.csv` — no models refit), computes per city/outcome: ratio of Q5/Q1 stratum estimates (`ratio_q5_vs_q1`, for the two ratio/log-link outcomes — NH visits RR, distance ratio) or Q5-minus-Q1 difference (`diff_q5_minus_q1`, for Gaussian NDVI), each with a delta-method 95% CI. Output: `output/numeric_results_ice_effect_modification_difference_contrasts.csv`.
-
-Results: NH visits — LA ratio 1.00 (95% CI 0.87–1.14); NYC ratio 0.88 (95% CI 0.77–1.00). NDVI — LA diff −0.005 (95% CI −0.018 to 0.008); NYC diff −0.009 (95% CI −0.033 to 0.014). Distance — LA ratio 0.96 (95% CI 0.82–1.12); NYC ratio 0.86 (95% CI 0.73–1.01). All six CIs include the null (1 for ratios, 0 for NDVI difference) — manuscript's overall "no clear evidence of effect modification" conclusion unchanged, on firmer footing than the CI-overlap heuristic it replaces. NYC NH-visits and NYC distance are closest to the null boundary (upper CI 1.00 and 1.01), consistent with the "directionally suggestive but not statistically robust" language for those two cells.
-
-Manuscript's Secondary analysis paragraph (lines ~198, 200, 202) was rewritten for all three outcomes to state this explicit contrast and CI inline, alongside per-stratum estimates, rather than describing CI overlap qualitatively.
-
----
-
-## ICE-stratified (Q1/Q5) overlay figure (Figure 4): axis scale and per-panel titles
-
-Figure 4 (`plot_ice_overlay()`, `code/functions/functions.R`) plots each Q1/Q5 curve as the stratum's centered CSI smooth (`gratia::smooth_estimates()`, mean-zero by mgcv's sum-to-zero constraint), exponentiated to a ratio/RR scale for log-link families or left on the identity scale for Gaussian (NDVI) — same centered transform, `log_y` convention, axis-label convention as `plot_smooth_gam()`/`plot_city_comparison()` (Figs 2/3), no stratum intercept added back. Keeps y-axis meaning consistent across all four figures. Established convention in prior GAM-curve figures (`open_streets_environ_noise`, `community_severance` repos): same centered/ratio scale (`gratia::draw(mod, select = sm, fun = exp)`, intercept never added back, dashed null line at 1). `07e_regenerate_manuscript_figures.R`'s `make_ice_row()` computes shared y-limit via `compute_shared_ylim()` (same helper Figs 2/3 use), passing `log_y = TRUE` for NH/proximity rows and `log_y = FALSE` for NDVI, matching each outcome's Fig 2/3 setting. No stratum intercept added → Fig 4 doesn't visually imply a Q1-vs-Q5 baseline-level comparison for any outcome, consistent with that not being part of the study design (see note above on `08i_extract_ice_effect_modification_contrasts.R`).
-
-`plot_ice_overlay()` also gained a `show_title` argument; `make_ice_row()` passes `show_title = TRUE` only for the top (NH) row of Figure 4, so city names ("Los Angeles" / "New York City") appear once above the combined figure instead of repeating per row.
-
----
-
-## Population totals cited in the Discussion ("Strengths" paragraph)
-
-Manuscript states the analysis spans "approximately 13 million residents across 3,312 census tracts, with the neighboring-home visits analysis covering 8.2 million residents across 2,018 tracts." Computed from the `population` column of `data_models_neighbor_visits_annual_average_2019_full_year.rds` — **not** `TotPop`, a separate, smaller derived variable used only for `pop_dens`, which sums to a much lower, non-matching total. Summing `population` across all 3,312 tracts gives 12,875,603 (≈13 million); restricting to the 2,018 NH-analytic tracts (`has_greenspace_tract == TRUE`) gives 8,188,889 (≈8.2 million) — both match the manuscript exactly.
+`code/08k_extract_manuscript_misc_counts.R` computes the population totals cited in the Discussion "Strengths" paragraph, from the `population` column of `data_models_neighbor_visits_annual_average_2019_full_year.rds` (not `TotPop`, a separate derived variable used only for `pop_dens`).
 
 ## Reproducible manuscript numeric audit
 
-`only_local/audit_manifest.csv` + `only_local/run_manuscript_audit.R` (local-only, gitignored, not part of this repo) form a permanent, mechanical, zero-tolerance checker for every numeric claim in the manuscript, replacing manual spot-checks. Manifest: one row per claim (`tex_ref`, `claim`, `source_csv`, `filter_expr` — literal dplyr-filter string, `value_col` or `__count__`, `round_dp`, `manuscript_value` — read as character so trailing zeros like `-0.30`/`1.00` are preserved). `run_manuscript_audit.R` reruns every extraction/diagnostic script feeding the manifest fresh (no cached outputs), checks each row's computed value (via `round_half_up()`, immune to the IEEE-754 boundary artifact — see Step 8c note) against the manuscript string, writes `output/manuscript_audit_results.csv`.
-
-`code/08k_extract_manuscript_misc_counts.R` is the consolidated source for small claims that previously had no permanent script: ICE income quintile boundaries, primary NH spline edf, Gamma zero-distance reassignment counts, NH analytic/retained sample sizes and percentages, LA >300m share, and the population totals above.
-
-Any new manuscript number must get both a manifest row and a permanent extraction script (existing convention, now enforced by a runnable checker rather than review alone). Run:
+`only_local/audit_manifest.csv` + `only_local/run_manuscript_audit.R` (local-only, gitignored, not part of this repo): mechanical checker for every numeric claim in the manuscript. Reruns every extraction/diagnostic script fresh, checks each computed value against the manuscript. Run:
 ```r
 source("only_local/run_manuscript_audit.R")
 ```
