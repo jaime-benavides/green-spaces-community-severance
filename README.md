@@ -107,7 +107,7 @@ Step 8j. extract_ice_effect_modification_difference_contrasts.R - reads the thre
 
 Step 8k. extract_manuscript_misc_counts.R - missingness/sample-size counts cited in-text; reads Step 8d's output
 
-Step 9. run_manuscript_audit.R - reruns every extraction/diagnostic script feeding code/audit_manifest.csv and checks each numeric claim in sn-article.tex against its computed source value
+Step 9. run_manuscript_audit.R (local-only, not in this repo) - reruns every extraction/diagnostic script feeding a manifest of manuscript numeric claims and checks each against its computed source value
 
 - output/manuscript_audit_results.csv
 

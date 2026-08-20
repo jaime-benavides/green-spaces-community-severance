@@ -8,16 +8,16 @@ data/**
 !data/**/.gitkeep
 output/
 OSMtrees.gpkg
-code/audit_manifest.csv
 
 # Manuscript (not included in repo)
 manuscript/
 
-# Internal project documentation
-CODE_REVIEW.md
+# Internal project documentation and local-only tooling (not shared with
+# GitHub or the code reviewer)
 PROJECT_STATUS.md
 contrast/
 other_analysis/
+only_local/
 
 # LaTeX auxiliary files
 *.aux
