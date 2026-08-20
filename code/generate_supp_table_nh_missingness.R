@@ -177,8 +177,3 @@ latex_lines <- c(
 out_path <- paste0(output.folder, "supp_table_nh_missingness.tex")
 writeLines(latex_lines, out_path)
 message("Supplementary missingness table saved to: ", out_path)
-
-# Copy to manuscript/tables/ for Overleaf compilation (consistent with Tables 1 and 2)
-ms_tables_path <- paste0(project.folder, "manuscript/tables/supp_table_nh_missingness.tex")
-file.copy(out_path, ms_tables_path, overwrite = TRUE)
-message("Copied to: ", ms_tables_path)

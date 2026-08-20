@@ -141,23 +141,4 @@ if (file.exists(nh_outl_path)) {
   message("Skipping Fig 2 (NH outlier-excluded): file not found.")
 }
 
-# ---- Copy all updated figures to manuscript/figs/ ----
-manuscript_figs <- paste0(project.folder, "manuscript/figs/")
-figs_to_copy <- c(
-  "models_result_neighbor_visit_annual_avg_no_outliers_2019_full_year.png",
-  "models_result_ndvi_proximity_primary.png",
-  "models_result_neighbor_visit_annual_avg_primary_adjusted_2019_full_year.png",
-  "models_result_ndvi_proximity_full_sample.png",
-  "models_result_neighbor_visit_annual_avg_primary_crude_2019_full_year.png",
-  "models_result_ndvi_proximity_crude.png",
-  "models_result_ice_q1_q5_combined.png"
-)
-for (f in figs_to_copy) {
-  src <- paste0(output.folder, f)
-  if (file.exists(src)) {
-    file.copy(src, paste0(manuscript_figs, f), overwrite = TRUE)
-    message("Copied to manuscript/figs/: ", f)
-  }
-}
-
-message("Done. All updated figures copied to manuscript/figs/")
+message("Done. All updated figures saved to output/")

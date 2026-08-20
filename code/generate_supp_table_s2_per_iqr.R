@@ -149,9 +149,3 @@ latex_lines <- c(header, nh_block, ndvi_block, dist_block, footer)
 tex_path <- paste0(output.folder, "supp_table_s2_per_iqr.tex")
 writeLines(latex_lines, tex_path)
 message("Supplementary Table S2 saved to: ", tex_path)
-
-ms_tables_path <- paste0(
-  project.folder, "manuscript/tables/supp_table_s2_per_iqr.tex"
-)
-file.copy(tex_path, ms_tables_path, overwrite = TRUE)
-message("Copied to: ", ms_tables_path)

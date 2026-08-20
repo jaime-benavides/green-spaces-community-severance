@@ -224,9 +224,3 @@ latex_lines <- c(header, body, footer)
 tex_path <- paste0(output.folder, "table1_descriptives_", output_label, ".tex")
 writeLines(latex_lines, tex_path)
 message("Table 1 (outcomes, exposure & covariates) saved to: ", tex_path)
-
-ms_tables_path <- paste0(
-  project.folder, "manuscript/tables/table1_descriptives_", output_label, ".tex"
-)
-file.copy(tex_path, ms_tables_path, overwrite = TRUE)
-message("Copied to: ", ms_tables_path)

@@ -196,13 +196,6 @@ png(paste0(output.folder,
   width = 1400, height = 600, type = "quartz")
 print(plot_city_comparison(fits_nh_outl, log_y = TRUE, rug = TRUE))
 dev.off()
-file.copy(
-  paste0(output.folder,
-    "models_result_neighbor_visit_annual_avg_no_outliers_2019_full_year.png"),
-  paste0(project.folder, "manuscript/figs/",
-    "models_result_neighbor_visit_annual_avg_no_outliers_2019_full_year.png"),
-  overwrite = TRUE
-)
-message("NH outlier-excluded figure saved and copied to manuscript/figs/ (Fig 2).")
+message("NH outlier-excluded figure saved (Fig 2).")
 
 message("All ICE and outlier-excluded figures done.")

@@ -294,10 +294,6 @@ fig1 <- patchwork::wrap_elements(shared_legend) / header_row / la_row / nyc_row 
 ggsave(paste0(output.folder, "figure1_nh_csi_maps.png"), fig1,
        width = 14, height = 8, dpi = 300, bg = "white")
 message("Saved: figure1_nh_csi_maps.png")
-file.copy(paste0(output.folder, "figure1_nh_csi_maps.png"),
-          paste0(manuscript.folder, "figs/figure1_nh_csi_maps.png"),
-          overwrite = TRUE)
-message("Copied Figure 1 to manuscript/figs/")
 
 # ── SUPPLEMENTARY: ICE Q1/Q5 categorical map (Supp Fig S2b) ───────────────────
 message("Building Supp Figure S2b: ICE Q1/Q5 categorical map...")
@@ -317,10 +313,6 @@ supp_ice_q1q5 <- tmap_arrange(p_ice_q1q5_la, p_ice_q1q5_nyc, nrow = 1, ncol = 2,
 save_tmap(supp_ice_q1q5,
           paste0(output.folder, "supp_map_ice_q1_q5.png"),
           width = 3200, height = 1400)
-file.copy(paste0(output.folder, "supp_map_ice_q1_q5.png"),
-          paste0(manuscript.folder, "figs/supp_map_ice_q1_q5.png"),
-          overwrite = TRUE)
-message("Copied supp_map_ice_q1_q5.png to manuscript/figs/")
 
 # ── OTHER SUPPLEMENTARY MAPS ───────────────────────────────────────────────────
 
@@ -334,9 +326,6 @@ save_supp_map <- function(var, palette, leg_title,
                       reverse = reverse)
   out <- tmap_arrange(p_la, p_nyc, nrow = 1, ncol = 2, widths = c(1, 1.7))
   save_tmap(out, paste0(output.folder, fname), width = width, height = height)
-  file.copy(paste0(output.folder, fname),
-            paste0(manuscript.folder, "figs/", fname), overwrite = TRUE)
-  message("Copied ", fname, " to manuscript/figs/")
 }
 
 message("Generating supplementary descriptive maps...")
@@ -347,4 +336,4 @@ message("Generating supplementary descriptive maps...")
 
 save_supp_map("ICE_inc", "RdBu", "Income ICE\n(decile)", "supp_map_ice_inc.png")
 
-message("All maps generated and copied to manuscript/figs/")
+message("All maps generated and saved to output/")

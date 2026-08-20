@@ -161,7 +161,3 @@ latex_lines <- c(
 out_path <- paste0(output.folder, "supp_table_outlier_geography.tex")
 writeLines(latex_lines, out_path)
 message("Supplementary outlier-geography table saved to: ", out_path)
-
-ms_tables_path <- paste0(project.folder, "manuscript/tables/supp_table_outlier_geography.tex")
-file.copy(out_path, ms_tables_path, overwrite = TRUE)
-message("Copied to: ", ms_tables_path)

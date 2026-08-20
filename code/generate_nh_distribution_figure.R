@@ -33,7 +33,3 @@ print(
 )
 dev.off()
 message("Saved: ", basename(out_path))
-
-file.copy(out_path, paste0(manuscript.folder, "figs/nh_visits_distribution.png"),
-          overwrite = TRUE)
-message("Copied to manuscript/figs/")
