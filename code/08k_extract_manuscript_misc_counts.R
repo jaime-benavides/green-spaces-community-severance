@@ -7,7 +7,7 @@ library(dplyr)
 library(mgcv)
 library(readr)
 
-# extract_manuscript_misc_counts.R
+# 08k_extract_manuscript_misc_counts.R
 # Purpose: Permanent source for small manuscript claims (Methods/Results)
 #          that previously had no saved script + CSV.
 

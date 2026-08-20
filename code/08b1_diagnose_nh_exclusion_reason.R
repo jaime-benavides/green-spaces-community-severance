@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# diagnose_nh_exclusion_reason.R
+# 08b1_diagnose_nh_exclusion_reason.R
 # Purpose: Classifies each excluded NH tract's reason (structural, data-gap,
 #          no CBG data); output feeds Supplementary Table S1.
 

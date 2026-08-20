@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# prep_ses.R
+# 01_prep_ses.R
 # Purpose: ACS tract-level socioeconomic indicators and Index of
 #          Concentration at the Extremes (ICE), via ndi::krieger().
 project.folder = paste0(print(here::here()), '/')

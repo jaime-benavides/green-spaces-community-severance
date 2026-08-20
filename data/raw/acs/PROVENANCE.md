@@ -9,4 +9,4 @@ package is self-contained.
 
 **Source project:** `community_severance_nys_climate_change_mh` (external to this repo)
 **Date copied:** 2026-08-20
-**Used by:** `code/prep_greenspace.R` (Step 3), as `acs.dt`
+**Used by:** `code/03_prep_greenspace.R` (Step 3), as `acs.dt`

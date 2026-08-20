@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# generate_figure1_maps.R
+# 07d_generate_figure1_maps.R
 # Purpose: Builds Figure 1 (2-row x 4-col city/variable map grid) and
 #          supplementary spatial maps (Fig S1).
 

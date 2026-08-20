@@ -9,7 +9,7 @@ library(dplyr)
 library(tibble)
 library(readr)
 
-# extract_ice_effect_modification_contrasts.R
+# 08i_extract_ice_effect_modification_contrasts.R
 # Purpose: Quantifies the Q1-vs-Q5 ICE gap for each outcome and city at CSI
 #          Q25/Q50/Q75. Diagnostic only — not cited in the manuscript.
 
@@ -159,7 +159,7 @@ nh_ice    <- readRDS(paste0(generated.data.folder,
 
 # =============================================================================
 # Pooled (primary, outlier-excluded) city-specific CSI Q25/Q50/Q75
-#   Reuses the same city-level quartiles as Table S2 (extract_numeric_results.R)
+#   Reuses the same city-level quartiles as Table S2 (08c_extract_numeric_results.R)
 #   so the ICE-gap contrasts are evaluated at the same CSI values already
 #   reported for the primary (unstratified) analysis.
 # =============================================================================

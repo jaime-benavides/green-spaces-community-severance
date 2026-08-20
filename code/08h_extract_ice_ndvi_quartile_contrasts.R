@@ -9,13 +9,13 @@ library(dplyr)
 library(tibble)
 library(readr)
 
-# extract_ice_ndvi_quartile_contrasts.R
+# 08h_extract_ice_ndvi_quartile_contrasts.R
 # Purpose: Quantifies the CSI-NDVI slope within each ICE stratum (Q1 vs Q5)
 #          per city, for the Secondary analysis text.
 
 
 # =============================================================================
-# Helpers (same approach as extract_numeric_results.R)
+# Helpers (same approach as 08c_extract_numeric_results.R)
 # =============================================================================
 
 extract_csi_lpblock <- function(model, csi_at, newdata_template) {
@@ -106,7 +106,7 @@ compute_q75_q25_diff <- function(model, dt_stratum, ice_stratum_label, city_labe
 
 # =============================================================================
 # Rebuild the Q1/Q5 stratum subsets exactly as in
-# generate_linear_ice_outl_figures.R (outlier-excluded sample)
+# 07c_generate_linear_ice_outl_figures.R (outlier-excluded sample)
 # =============================================================================
 
 dt <- readRDS(paste0(generated.data.folder, "data_models.rds")) |>

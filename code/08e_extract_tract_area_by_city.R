@@ -8,7 +8,7 @@ library(sf)
 library(dplyr)
 library(readr)
 
-# extract_tract_area_by_city.R
+# 08e_extract_tract_area_by_city.R
 # Purpose: Quantifies how much smaller NYC tracts are than LA tracts in land
 #          area, for context on the LA-vs-NYC distance comparison.
 

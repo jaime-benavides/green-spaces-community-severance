@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# generate_nh_distribution_figure.R
+# 08g_generate_nh_distribution_figure.R
 # Purpose: Plots the distribution of NH visits by city (Fig S2a).
 
 project.folder <- paste0(print(here::here()), "/")

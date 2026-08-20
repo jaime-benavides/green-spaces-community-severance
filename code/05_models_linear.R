@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# models_linear.R
+# 05_models_linear.R
 # Purpose: Fits the NDVI (Gaussian GAM) and proximity (Gamma GAM) models.
 
 project.folder = paste0(print(here::here()), '/')
@@ -45,7 +45,7 @@ la_ses_df <- la_ses_df[,c("GEOID",  "ICE_inc",  "ICE_rewb",
                           "perc.black", "perc.hisp", "perc.pov", "pop_dens")]
 
 # green spaces
-# ndvi_*_census_tract.rds are plain data.frames (geometry stripped by prep_greenspace.R).
+# ndvi_*_census_tract.rds are plain data.frames (geometry stripped by 03_prep_greenspace.R).
 # Attach tract geometry from krieger_ice before the spatial operations below.
 nyc_ndvi <- readRDS(paste0(generated.data.folder, "ndvi_nyc_census_tract.rds"))
 nyc_ice_geom <- readRDS(paste0(generated.data.folder, "krieger_ice_nyc.rds")) |>

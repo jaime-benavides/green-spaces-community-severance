@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# regenerate_manuscript_figures.R
+# 07e_regenerate_manuscript_figures.R
 # Purpose: Regenerates all manuscript smooth figures from saved model
 #          objects, including Fig 4 and sensitivity Figs S3/S4.
 

@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# prep_csi.R
+# 02_prep_csi.R
 # Purpose: Population-weighted Community Severance Index (CSI) aggregation
 #          from block group to census tract.
 project.folder = paste0(print(here::here()), '/')

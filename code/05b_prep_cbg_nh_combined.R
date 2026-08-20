@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# prep_cbg_nh_combined.R
+# 05b_prep_cbg_nh_combined.R
 # Purpose: Merges the primary and supplementary Advan CBG-level NH files.
 
 project.folder = paste0(print(here::here()), '/')

@@ -17,7 +17,7 @@ should not be edited here. To regenerate, rerun the pipeline in that project.
 | `2019_full_year_neighbor_home_nyc_la_tract_average.csv` | Pre-merged tract-level NH estimates: all 2019 TIGER CBGs within the 500 Cities boundaries for NYC and LA, aggregated to census tract, full year (12 months), primary + supplementary sources combined | **Workflow input — Step 6** |
 | `2019_full_year_neighbor_home_nyc_la_annual_average.csv` | Annual-average NH estimates at the CBG level, NYC and LA, 2019 — primary Advan Neighborhood Patterns Plus data only | Archival / raw source |
 | `2019_full_year_neighbor_home_supplementary_tract_average.csv` | Tract-level NH estimates for 258 tracts whose CBGs were absent from the primary Advan output; processed via a supplementary pipeline run | Archival / raw source |
-| `2019_full_year_neighbor_home_supplementary_annual_average.csv` | CBG-level NH estimates for the 949 CBGs from the supplementary pipeline run (pre-tract-aggregation) | `code/prep_cbg_nh_combined.R` (Step 5b) input |
+| `2019_full_year_neighbor_home_supplementary_annual_average.csv` | CBG-level NH estimates for the 949 CBGs from the supplementary pipeline run (pre-tract-aggregation) | `code/05b_prep_cbg_nh_combined.R` (Step 5b) input |
 | `2019_neighbor_home_robustness_audit.html` | Full robustness and coverage audit — read before using the metric in any model | Reference |
 | `neigh_home.tex` | Methods manuscript (in prep, Discover Cities) — cite for methods description | Reference |
 
@@ -64,7 +64,7 @@ nh <- read_csv(
 ```
 
 The green space project joins this to `data/generated/data_models.rds` via
-`GEOID` × `city` in `code/prep_neighbor_visits_annual_average.R` (Step 6).
+`GEOID` × `city` in `code/06_prep_neighbor_visits_annual_average.R` (Step 6).
 
 ---
 

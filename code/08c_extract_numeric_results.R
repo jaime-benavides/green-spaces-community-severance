@@ -9,7 +9,7 @@ library(dplyr)
 library(tibble)
 library(readr)
 
-# extract_numeric_results.R
+# 08c_extract_numeric_results.R
 # Purpose: Extracts Q25-to-Q75 quartile contrasts (NDVI, distance, NH visits)
 #          from the outlier-excluded primary GAMs, for Supplementary Table S2.
 
@@ -212,7 +212,7 @@ dt_gs_full <- dt_gs_full |>
 dt_la_gs  <- dplyr::filter(dt_gs_full, city == "LA",  outlier_flag == "Within")
 dt_nyc_gs <- dplyr::filter(dt_gs_full, city == "NYC", outlier_flag == "Within")
 
-# NH: outlier flags already applied in generate_linear_ice_outl_figures.R logic
+# NH: outlier flags already applied in 07c_generate_linear_ice_outl_figures.R logic
 dt_nh_full <- readRDS(paste0(generated.data.folder,
   "data_models_neighbor_visits_annual_average_2019_full_year.rds"))
 dt_nh_full <- dt_nh_full |>

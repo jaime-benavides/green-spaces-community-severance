@@ -7,7 +7,7 @@ source(paste0(functions.folder, "script_initiate.R"))
 library(dplyr)
 library(readr)
 
-# extract_outlier_exclusion_counts.R
+# 08d_extract_outlier_exclusion_counts.R
 # Purpose: Reports, per city and outcome, how many tracts are excluded by
 #          the |z_CSI| > 2 outlier rule stated in the manuscript's Methods.
 

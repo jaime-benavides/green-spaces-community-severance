@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# generate_supp_table_nh_missingness.R
+# 08b2_generate_supp_table_nh_missingness.R
 # Purpose: Builds Supplementary Table S1 comparing NH-missing tracts to
 #          the NH analytic sample.
 
@@ -46,7 +46,7 @@ quintile_levels <- c(
 )
 
 # exclusion-reason breakdown, traced to output/nh_exclusion_reason_diagnosis.csv
-# (code/diagnose_nh_exclusion_reason.R), split by city
+# (code/08b1_diagnose_nh_exclusion_reason.R), split by city
 excl_reason <- read_csv(
   paste0(output.folder, "nh_exclusion_reason_diagnosis.csv"),
   show_col_types = FALSE

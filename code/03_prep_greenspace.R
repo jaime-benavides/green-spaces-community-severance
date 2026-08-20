@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# prep_greenspace.R
+# 03_prep_greenspace.R
 # Purpose: Computes tract-level NDVI and Euclidean distance to nearest
 #          public green space.
 project.folder = paste0(print(here::here()), '/')

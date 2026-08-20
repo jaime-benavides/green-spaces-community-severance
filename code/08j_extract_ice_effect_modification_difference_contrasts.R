@@ -8,7 +8,7 @@ library(dplyr)
 library(tibble)
 library(readr)
 
-# extract_ice_effect_modification_difference_contrasts.R
+# 08j_extract_ice_effect_modification_difference_contrasts.R
 # Purpose: Computes an explicit Q1-vs-Q5 contrast-of-contrasts (with CI) for
 #          the CSI quartile effect, cited in the Secondary analysis text.
 

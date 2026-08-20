@@ -9,13 +9,13 @@ library(dplyr)
 library(tibble)
 library(readr)
 
-# extract_ice_distance_quartile_contrasts.R
-# Purpose: Quantifies the CSI-distance-to-green-space slope within each ICE
-#          stratum (Q1 vs Q5) per city, for the Secondary analysis text.
+# 08h_extract_ice_nh_quartile_contrasts.R
+# Purpose: Quantifies the CSI-NH-visits quartile contrast (IRR) within each
+#          ICE stratum (Q1 vs Q5) per city, for the Secondary analysis text.
 
 
 # =============================================================================
-# Helpers (same approach as extract_numeric_results.R)
+# Helpers (same approach as 08c_extract_numeric_results.R)
 # =============================================================================
 
 extract_csi_lpblock <- function(model, csi_at, newdata_template) {
@@ -41,7 +41,8 @@ compute_csi_contrast_se <- function(x_mat, v_csi, i, j) {
   sqrt(pmax(as.numeric(l_vec %*% v_csi %*% t(l_vec)), 0))
 }
 
-compute_q75_q25_ratio <- function(model, dt_stratum, ice_stratum_label, city_label) {
+compute_q75_q25_irr <- function(model, dt_stratum, ice_stratum_label, city_label,
+                                offset_var) {
 
   if (is.null(model)) {
     warning("Model is NULL for ", ice_stratum_label, " ", city_label, " — skipping.")
@@ -73,31 +74,24 @@ compute_q75_q25_ratio <- function(model, dt_stratum, ice_stratum_label, city_lab
     neighborhood     = ref_neigh,
     stringsAsFactors = FALSE
   )
+  template[[offset_var]] <- 1
 
-  lp_at  <- extract_csi_lpblock(model, c(q25, q50, q75), template)
-  lp_cen <- extract_csi_lpblock(model, rep(q50, 3), template)
+  lp_at  <- extract_csi_lpblock(model, c(q25, q75), template)
+  lp_cen <- extract_csi_lpblock(model, c(q50, q50), template)
 
-  x_mat <- lp_at$X - lp_cen$X  # rows: Q25-Q50, Q50-Q50 (=0), Q75-Q50
+  x_mat <- lp_at$X - lp_cen$X  # row 1: smooth(Q25)-smooth(Q50); row 2: smooth(Q75)-smooth(Q50)
 
   beta_csi <- coef(model)[lp_at$coef_names]
   v_csi    <- vcov(model)[lp_at$coef_names, lp_at$coef_names, drop = FALSE]
 
   fit_all <- as.numeric(x_mat %*% beta_csi)
+  est_lp  <- fit_all[2] - fit_all[1]                       # Q75 vs Q25
+  se_lp   <- compute_csi_contrast_se(x_mat, v_csi, i = 2, j = 1)
+  lo_lp   <- est_lp - 1.96 * se_lp
+  hi_lp   <- est_lp + 1.96 * se_lp
 
-  est_lp <- c(
-    q50_q25 = -fit_all[1],
-    q75_q50 =  fit_all[3],
-    q75_q25 =  fit_all[3] - fit_all[1]
-  )
-  se_lp <- c(
-    q50_q25 = compute_csi_contrast_se(x_mat, v_csi, i = 2, j = 1),
-    q75_q50 = compute_csi_contrast_se(x_mat, v_csi, i = 3, j = 2),
-    q75_q25 = compute_csi_contrast_se(x_mat, v_csi, i = 3, j = 1)
-  )
-  lo_lp <- est_lp - 1.96 * se_lp
-  hi_lp <- est_lp + 1.96 * se_lp
-
-  edf <- summary(model)$s.table["s(community_severance_index)", "edf"]
+  s_table <- summary(model)$s.table
+  csi_edf <- round(s_table["s(community_severance_index)", "edf"], 3)
 
   tibble(
     ice_stratum = ice_stratum_label,
@@ -105,24 +99,33 @@ compute_q75_q25_ratio <- function(model, dt_stratum, ice_stratum_label, city_lab
     n_tracts    = nrow(dt_stratum),
     csi_q25     = round(q25, 3),
     csi_q75     = round(q75, 3),
-    edf         = round(edf, 3),
-    contrast    = c("Q50_vs_Q25", "Q75_vs_Q50", "Q75_vs_Q25"),
-    ratio       = round(exp(est_lp), 4),
-    ci_low_95   = round(exp(lo_lp), 4),
-    ci_high_95  = round(exp(hi_lp), 4)
+    edf         = csi_edf,
+    irr         = round(exp(est_lp), 3),
+    ci_low_95   = round(exp(lo_lp), 3),
+    ci_high_95  = round(exp(hi_lp), 3)
   )
 }
 
+
 # =============================================================================
 # Rebuild the Q1/Q5 stratum subsets exactly as in
-# generate_linear_ice_outl_figures.R (outlier-excluded sample)
+# 07_models_neighbor_visits_annual_average.R (primary, outlier-excluded sample)
 # =============================================================================
 
-dt <- readRDS(paste0(generated.data.folder, "data_models.rds")) |>
-  mutate(city = as.factor(city), neighborhood = as.factor(neighborhood)) |>
-  mutate(closest_greenspace = ifelse(closest_greenspace == 0, 1, closest_greenspace))
+dt <- readRDS(paste0(
+  generated.data.folder,
+  "data_models_neighbor_visits_annual_average_2019_full_year.rds"
+)) |>
+  mutate(city = as.factor(city), neighborhood = as.factor(neighborhood))
 
-city_csi_stats <- dt |>
+dt_primary <- dt |>
+  filter(
+    !is.na(neighbor_visit_count_annual_avg),
+    !is.na(home_device_counts_total_parsed_annual_avg),
+    home_device_counts_total_parsed_annual_avg > 0
+  )
+
+city_csi_stats <- dt_primary |>
   group_by(city) |>
   summarise(
     mean_csi = mean(community_severance_index, na.rm = TRUE),
@@ -130,7 +133,7 @@ city_csi_stats <- dt |>
     .groups = "drop"
   )
 
-dt_no_outl <- dt |>
+dt_primary_no_outl <- dt_primary |>
   left_join(city_csi_stats, by = "city") |>
   mutate(
     z_csi        = (community_severance_index - mean_csi) / sd_csi,
@@ -138,40 +141,48 @@ dt_no_outl <- dt |>
   ) |>
   filter(outlier_flag != "Outlier (|z|>2)")
 
-dt_gs_q1 <- dt_no_outl |>
-  filter(ICE_inc_quintile == "Q1 (Most Disadvantaged)", !is.na(closest_greenspace))
-dt_gs_q5 <- dt_no_outl |>
-  filter(ICE_inc_quintile == "Q5 (Most Advantaged)", !is.na(closest_greenspace))
+dt_nh_q1 <- dt_primary_no_outl[dt_primary_no_outl$ICE_inc_quintile == "Q1 (Most Disadvantaged)", ]
+dt_nh_q5 <- dt_primary_no_outl[dt_primary_no_outl$ICE_inc_quintile == "Q5 (Most Advantaged)", ]
+
 
 # =============================================================================
-# Load the Q1/Q5-stratified proximity models and compute contrasts per city
+# Load the Q1/Q5-stratified models and compute Q25-to-Q75 IRR per city
 # =============================================================================
 
-fits <- readRDS(paste0(generated.data.folder, "greenspace_ice_q1_q5_fit.rds"))
+fits <- readRDS(paste0(
+  generated.data.folder,
+  "neighbor_visit_ice_q1_q5_fit_2019_full_year.rds"
+))
+
+offset_nh <- "home_device_counts_total_parsed_annual_avg"
 
 results_all <- bind_rows(
-  compute_q75_q25_ratio(
-    fits$q1$fit_city_la, dplyr::filter(dt_gs_q1, city == "LA"),
-    "Q1 (Most Disadvantaged)", "LA"
+  compute_q75_q25_irr(
+    fits$q1$fit_city_la,
+    dplyr::filter(dt_nh_q1, city == "LA"),
+    "Q1 (Most Disadvantaged)", "LA", offset_nh
   ),
-  compute_q75_q25_ratio(
-    fits$q1$fit_city_nyc, dplyr::filter(dt_gs_q1, city == "NYC"),
-    "Q1 (Most Disadvantaged)", "NYC"
+  compute_q75_q25_irr(
+    fits$q1$fit_city_nyc,
+    dplyr::filter(dt_nh_q1, city == "NYC"),
+    "Q1 (Most Disadvantaged)", "NYC", offset_nh
   ),
-  compute_q75_q25_ratio(
-    fits$q5$fit_city_la, dplyr::filter(dt_gs_q5, city == "LA"),
-    "Q5 (Most Advantaged)", "LA"
+  compute_q75_q25_irr(
+    fits$q5$fit_city_la,
+    dplyr::filter(dt_nh_q5, city == "LA"),
+    "Q5 (Most Advantaged)", "LA", offset_nh
   ),
-  compute_q75_q25_ratio(
-    fits$q5$fit_city_nyc, dplyr::filter(dt_gs_q5, city == "NYC"),
-    "Q5 (Most Advantaged)", "NYC"
+  compute_q75_q25_irr(
+    fits$q5$fit_city_nyc,
+    dplyr::filter(dt_nh_q5, city == "NYC"),
+    "Q5 (Most Advantaged)", "NYC", offset_nh
   )
 ) |>
-  dplyr::arrange(city, ice_stratum, contrast)
+  dplyr::arrange(city, ice_stratum)
 
 print(results_all, n = Inf)
 
 write_csv(results_all,
-          paste0(output.folder, "numeric_results_ice_distance_quartile_contrasts.csv"))
+          paste0(output.folder, "numeric_results_ice_nh_quartile_contrasts.csv"))
 
-message("Saved: output/numeric_results_ice_distance_quartile_contrasts.csv")
+message("Saved: output/numeric_results_ice_nh_quartile_contrasts.csv")

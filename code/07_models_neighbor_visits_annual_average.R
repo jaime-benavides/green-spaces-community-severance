@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# models_neighbor_visits_annual_average.R
+# 07_models_neighbor_visits_annual_average.R
 # Purpose: Fits the neighboring-home visits GAMs (negative binomial).
 
 project.folder = paste0(print(here::here()), '/')
@@ -180,7 +180,7 @@ names(model_list_neighbor_visit_share$fits_city) <- paste0("fit_city_", tolower(
 # ICE Q1/Q5 income-stratified models (neighboring-home count, primary offset)
 # Q1 = most disadvantaged; Q5 = most advantaged
 # Outlier-excluded, consistent with the primary analysis (Methods) and with
-# the NDVI/proximity ICE Q1/Q5 models in generate_linear_ice_outl_figures.R.
+# the NDVI/proximity ICE Q1/Q5 models in 07c_generate_linear_ice_outl_figures.R.
 # -----------------------------------------------------------------------
 
 dt_nh_q1 <- dt_primary_no_outl[dt_primary_no_outl$ICE_inc_quintile == "Q1 (Most Disadvantaged)", ]

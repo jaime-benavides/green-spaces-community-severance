@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# prep_neighbor_visits_annual_average.R
+# 06_prep_neighbor_visits_annual_average.R
 # Purpose: Aggregates NH visits to tract-level annual averages; restricts
 #          to green-space CBGs.
 
@@ -35,7 +35,7 @@ pad_geoid <- function(x, width) {
 }
 
 # ---- Load combined CBG-level NH data ----------------------------------------
-# Single canonical file produced by prep_cbg_nh_combined.R (Step 5b).
+# Single canonical file produced by 05b_prep_cbg_nh_combined.R (Step 5b).
 # Contains primary (15,483 CBGs) + supplementary (949 CBGs, 258 tracts absent
 # from primary). Filter to months_present == 12 before spatial join.
 
@@ -87,7 +87,7 @@ message("Study-area CBGs (TIGER 2019): ",
 # ---- Intersect CBGs with PAD-US AR ------------------------------------------
 # A CBG has_greenspace = TRUE if its geometry intersects any PAD-US AR polygon
 # (publicly accessible and recreational green space >= 400 m², as used in
-# prep_greenspace.R for the proximity outcome).
+# 03_prep_greenspace.R for the proximity outcome).
 
 message("Loading PAD-US AR shapefile...")
 padus_ar <- sf::read_sf(padus_ar_path) |> sf::st_transform(crs_proj)
@@ -123,7 +123,7 @@ message("CBGs retained (green space + 12-month complete): ", nrow(cbg_gs))
 
 # ---- Aggregate to census tract ----------------------------------------------
 # For each tract: sum counts from qualifying CBGs.
-# Rename to match the column names expected by models_neighbor_visits_annual_average.R.
+# Rename to match the column names expected by 07_models_neighbor_visits_annual_average.R.
 
 tract_gs <- cbg_gs |>
   dplyr::group_by(TRACT_GEOID, city) |>

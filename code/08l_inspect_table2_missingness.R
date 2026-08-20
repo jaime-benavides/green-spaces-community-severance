@@ -8,7 +8,7 @@ library(sf)
 library(ggplot2)
 library(patchwork)
 
-# inspect_table2_missingness.R
+# 08l_inspect_table2_missingness.R
 # Purpose: Reproduces the Table 2 missingness footnote check (share of
 #          missing-value tracts that are non-residential, by city).
 

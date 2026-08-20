@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# table1_outcome_descriptives_neighbor_visits.R
+# 08a_table1_outcome_descriptives_neighbor_visits.R
 # Purpose: Builds Table 1 (outcomes, exposure & covariates).
 
 project.folder <- paste0(print(here::here()), "/")

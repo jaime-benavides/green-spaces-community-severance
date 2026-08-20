@@ -6,7 +6,7 @@ source(paste0(project.folder, "init_directory_structure.R"))
 library(dplyr)
 library(sf)
 
-# generate_supp_table_outlier_geography.R
+# 08f_generate_supp_table_outlier_geography.R
 # Purpose: Builds Supplementary Table S3 comparing tract area, density, and
 #          CSI between outlier and within-range tracts, by city.
 

@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# generate_linear_ice_outl_figures.R
+# 07c_generate_linear_ice_outl_figures.R
 # Purpose: Builds the primary NDVI/proximity figures (Figs 2, 3) and fits
 #          the ICE Q1/Q5 stratified models (used in Fig 4).
 
@@ -40,7 +40,7 @@ dt <- dt |>
 dt <- dt |>
   mutate(closest_greenspace = ifelse(closest_greenspace == 0, 1, closest_greenspace))
 
-# City-specific CSI outlier z-scores (consistent with models_linear.R)
+# City-specific CSI outlier z-scores (consistent with 05_models_linear.R)
 city_csi_stats <- dt |>
   group_by(city) |>
   summarise(
