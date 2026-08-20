@@ -165,4 +165,4 @@ R (≥ 4.2). Package dependencies are loaded via `code/packages/packages_to_load
 
 ## Reference
 
-Benavides J, Zigler C, Kioumourtzoglou M-A. Community Severance and Green Space Accessibility in New York City and Los Angeles. *Discover Cities* (under review).
+Benavides J, Zigler C, Usmani S, Kioumourtzoglou M-A. Community Severance and Green Space Accessibility in New York City and Los Angeles. *Discover Cities* (under review).
