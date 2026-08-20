@@ -707,7 +707,7 @@ source("code/08f_generate_supp_table_outlier_geography.R")
 
 ## Table 2 covariate missingness
 
-`code/08l_inspect_table2_missingness.R` (Step 8l) reproduces the Table 2 missingness footnote check. Output: `output/table2_missingness_diagnosis.csv`, `output/table2_missingness_maps.png`. Checked by the manuscript audit below.
+`code/08l_inspect_table2_missingness.R` (Step 8l) reproduces the Table 2 missingness footnote check. Output: `output/table2_missingness_diagnosis.csv`, `output/table2_missingness_maps.png`.
 
 ---
 
@@ -731,13 +731,6 @@ Figure 4 (`plot_ice_overlay()`, `code/functions/functions.R`) overlays each stra
 ## Population totals cited in the Discussion
 
 `code/08k_extract_manuscript_misc_counts.R` computes the population totals cited in the Discussion "Strengths" paragraph, from the `population` column of `data_models_neighbor_visits_annual_average_2019_full_year.rds` (not `TotPop`, a separate derived variable used only for `pop_dens`).
-
-## Reproducible manuscript numeric audit
-
-`only_local/audit_manifest.csv` + `only_local/run_manuscript_audit.R` (local-only, gitignored, not part of this repo): mechanical checker for every numeric claim in the manuscript. Reruns every extraction/diagnostic script fresh, checks each computed value against the manuscript. Run:
-```r
-source("only_local/run_manuscript_audit.R")
-```
 
 ---
 
