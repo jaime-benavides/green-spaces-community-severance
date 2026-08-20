@@ -93,7 +93,6 @@ Jump from a manuscript paragraph to the script(s) that produced it.
 ### Software
 
 - **R** (≥ 4.2 recommended) with the packages listed in §7 below.
-- **LaTeX** with the `sn-jnl` class (the class file `sn-jnl.cls` is already in `manuscript/`). Compile from within the `manuscript/` directory.
 
 ### Data: raw-input dependencies
 
