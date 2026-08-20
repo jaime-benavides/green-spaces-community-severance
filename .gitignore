@@ -8,6 +8,7 @@ data/**
 !data/**/.gitkeep
 output/
 OSMtrees.gpkg
+code/audit_manifest.csv
 
 # Manuscript (not included in repo)
 manuscript/
