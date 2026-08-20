@@ -3,8 +3,9 @@ rm(list = ls())
 project.folder = paste0(print(here::here()), '/')
 source(paste0(project.folder, 'init_directory_structure.R'))
 
-# Runs Steps 6–7: NH metric preparation followed by NH GAM fitting.
-# Input is fixed: data/raw/neigh_home/2019_full_year_neighbor_home_nyc_la_tract_average.csv
+# run_neighbor_visits_workflow.R
+# Purpose: Runs Steps 6-7 (NH metric preparation, then NH GAM fitting).
+#          Input is fixed: data/raw/neigh_home/2019_full_year_neighbor_home_nyc_la_tract_average.csv
 
 output_label    <- "2019_full_year"
 model_input_out <- paste0(generated.data.folder,

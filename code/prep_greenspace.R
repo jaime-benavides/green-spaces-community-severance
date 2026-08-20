@@ -1,9 +1,8 @@
-################################################################################
-# ICE Index (Krieger et al., Feldman et al.) – NYC & LA Block Groups
-# Using ndi::krieger() from the NDI package
-################################################################################
-
 rm(list = ls())
+
+# prep_greenspace.R
+# Purpose: Computes tract-level NDVI and Euclidean distance to nearest
+#          public green space.
 project.folder = paste0(print(here::here()), '/')
 source(paste0(project.folder, 'init_directory_structure.R'))
 source(paste0(functions.folder, 'script_initiate.R'))

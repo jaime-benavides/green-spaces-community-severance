@@ -7,15 +7,9 @@ library(dplyr)
 library(mgcv)
 library(readr)
 
-# =============================================================================
 # extract_manuscript_misc_counts.R
-#
-# Purpose: Permanent, rerunnable source for a set of small manuscript claims
-#          that previously had no saved script + CSV (Methods/Results, various
-#          lines). Each block below computes one claim and appends a row to
-#          output/numeric_results_misc_counts.csv. Added as part of the
-#          zero-tolerance numeric audit (see CODE_REVIEW.md).
-# =============================================================================
+# Purpose: Permanent source for small manuscript claims (Methods/Results)
+#          that previously had no saved script + CSV.
 
 results <- list()
 

@@ -1,5 +1,9 @@
 rm(list = ls())
 
+# diagnose_nh_exclusion_reason.R
+# Purpose: Classifies each excluded NH tract's reason (structural, data-gap,
+#          no CBG data); output feeds Supplementary Table S1.
+
 project.folder <- paste0(print(here::here()), "/")
 source(paste0(project.folder, "init_directory_structure.R"))
 

@@ -9,31 +9,9 @@ library(dplyr)
 library(tibble)
 library(readr)
 
-# =============================================================================
 # extract_numeric_results.R
-#
-# Purpose: Extract quartile contrasts from the outlier-excluded primary GAMs
-#          (NDVI, distance to nearest green space, neighboring-home count) for
-#          Supplementary Table S2 of sn-article.tex.
-#
-# Method:  For each city-specific GAM, evaluate the s(community_severance_index)
-#          smooth at Q25, Q50, and Q75 of the city-specific (outlier-excluded)
-#          CSI distribution.  The smooth is centered at Q50 (median).
-#          Three contrasts are reported per outcome × city:
-#            beta_q25_q50 = smooth(Q50) - smooth(Q25)  [lower segment]
-#            beta_q50_q75 = smooth(Q75) - smooth(Q50)  [upper segment]
-#            beta_q25_q75 = smooth(Q75) - smooth(Q25)  [overall IQR contrast]
-#          95% CIs via delta method on the CSI-smooth vcov submatrix, exactly
-#          as in main_anchored_quartile_contrasts.R in bne_uncertainty_ses_multiyear.
-#
-# Models:  Primary (outlier-excluded) adjusted models only:
-#            ndvi_outl_city_adjusted_linear.rds
-#            greenspace_outl_city_adjusted_linear.rds
-#            neighbor_visit_outl_city_adjusted_2019_full_year.rds
-#
-# Output:
-#   output/numeric_results_quartile_contrasts.csv
-# =============================================================================
+# Purpose: Extracts Q25-to-Q75 quartile contrasts (NDVI, distance, NH visits)
+#          from the outlier-excluded primary GAMs, for Supplementary Table S2.
 
 
 # =============================================================================

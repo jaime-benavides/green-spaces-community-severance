@@ -1,5 +1,8 @@
 rm(list = ls())
 
+# table1_outcome_descriptives_neighbor_visits.R
+# Purpose: Builds Table 1 (outcomes, exposure & covariates).
+
 project.folder <- paste0(print(here::here()), "/")
 source(paste0(project.folder, "init_directory_structure.R"))
 source(paste0(functions.folder, "script_initiate.R"))

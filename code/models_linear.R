@@ -1,4 +1,8 @@
 rm(list = ls())
+
+# models_linear.R
+# Purpose: Fits the NDVI (Gaussian GAM) and proximity (Gamma GAM) models.
+
 project.folder = paste0(print(here::here()), '/')
 source(paste0(project.folder, 'init_directory_structure.R'))
 source(paste0(functions.folder, 'script_initiate.R'))

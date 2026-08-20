@@ -1,5 +1,9 @@
 rm(list = ls())
 
+# generate_supp_table_s2_per_iqr.R
+# Purpose: Formats Supplementary Table S2 (quartile contrasts) as LaTeX
+#          from the extracted numeric-results CSV.
+
 project.folder <- paste0(print(here::here()), "/")
 source(paste0(project.folder, "init_directory_structure.R"))
 

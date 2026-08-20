@@ -1,5 +1,8 @@
 rm(list = ls())
 
+# generate_nh_ice_q1_q5_figure.R
+# Purpose: Fits and plots the NH ICE Q1/Q5 stratified model (feeds Fig 4).
+
 project.folder <- paste0(print(here::here()), "/")
 source(paste0(project.folder, "init_directory_structure.R"))
 source(paste0(functions.folder, "script_initiate.R"))

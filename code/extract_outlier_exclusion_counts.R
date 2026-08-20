@@ -7,24 +7,9 @@ source(paste0(functions.folder, "script_initiate.R"))
 library(dplyr)
 library(readr)
 
-# =============================================================================
 # extract_outlier_exclusion_counts.R
-#
-# Purpose: Report, per city and per outcome, how many census tracts are
-#          excluded from the primary (adjusted, outlier-excluded) analytic
-#          samples by the |z_CSI| > 2 (city-specific) rule stated in the
-#          Statistical analysis subsection of sn-article.tex. Replicates the
-#          same city-specific z-score exclusion logic used in
-#          generate_linear_ice_outl_figures.R (Figs 2, 3) and models_linear.R,
-#          applied separately to each outcome's own analytic sample so that
-#          differences in missingness across outcomes are reflected in the
-#          counts.
-#
-# Inputs:  data/generated/data_models.rds
-#          data/generated/data_models_neighbor_visits_annual_average_2019_full_year.rds
-#
-# Output:  output/numeric_results_outlier_exclusion_counts.csv
-# =============================================================================
+# Purpose: Reports, per city and outcome, how many tracts are excluded by
+#          the |z_CSI| > 2 outlier rule stated in the manuscript's Methods.
 
 flag_outliers <- function(data) {
   city_csi_stats <- data |>

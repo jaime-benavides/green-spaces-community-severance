@@ -1,11 +1,8 @@
-################################################################################
-# ICE Index (Krieger et al., Feldman et al.) – NYC & LA Block Groups
-# Using ndi::krieger() from the NDI package
-################################################################################
-#todo: update prep_csi.R
-
-
 rm(list = ls())
+
+# prep_csi.R
+# Purpose: Population-weighted Community Severance Index (CSI) aggregation
+#          from block group to census tract.
 project.folder = paste0(print(here::here()), '/')
 source(paste0(project.folder, 'init_directory_structure.R'))
 source(paste0(functions.folder, 'script_initiate.R'))

@@ -1,5 +1,8 @@
 rm(list = ls())
 
+# models_neighbor_visits_annual_average.R
+# Purpose: Fits the neighboring-home visits GAMs (negative binomial).
+
 project.folder = paste0(print(here::here()), '/')
 source(paste0(project.folder, 'init_directory_structure.R'))
 source(paste0(functions.folder, 'script_initiate.R'))

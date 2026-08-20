@@ -8,26 +8,9 @@ library(sf)
 library(dplyr)
 library(readr)
 
-# =============================================================================
 # extract_tract_area_by_city.R
-#
-# Purpose: Quantify how much smaller NYC census tracts are than LA census
-#          tracts in land area, for the descriptive-statistics paragraph of
-#          sn-article.tex (Results, tract-level descriptives). Provides
-#          context for interpreting the LA-vs-NYC median distance-to-nearest-
-#          green-space comparison: part of any absolute-distance difference
-#          between cities is mechanically related to tract geometry (larger
-#          tracts place the population-weighted centroid farther, on average,
-#          from any fixed point feature), independent of green space
-#          accessibility itself.
-#
-# Inputs:  data/generated/krieger_ice_la.rds  (n = 1,148 LA tracts)
-#          data/generated/krieger_ice_nyc.rds (n = 2,164 NYC tracts)
-#          Together these are the full 3,312-tract analytic universe cited
-#          at sn-article.tex line 154 (1,148 + 2,164 = 3,312).
-#
-# Output:  output/numeric_results_tract_area_by_city.csv
-# =============================================================================
+# Purpose: Quantifies how much smaller NYC tracts are than LA tracts in land
+#          area, for context on the LA-vs-NYC distance comparison.
 
 la  <- readRDS(paste0(generated.data.folder, "krieger_ice_la.rds"))
 nyc <- readRDS(paste0(generated.data.folder, "krieger_ice_nyc.rds"))

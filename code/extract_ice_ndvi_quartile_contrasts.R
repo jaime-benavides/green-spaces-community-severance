@@ -9,34 +9,9 @@ library(dplyr)
 library(tibble)
 library(readr)
 
-# =============================================================================
 # extract_ice_ndvi_quartile_contrasts.R
-#
-# Purpose: Quantify the CSI-NDVI slope within each ICE stratum (Q1 most
-#          disadvantaged, Q5 most advantaged) for each city, so the Secondary
-#          analysis paragraph of sn-article.tex can describe the LA vs. NYC
-#          pattern (similar magnitude in LA; larger decrease in NYC Q5 than
-#          Q1) with the same quartile-segment contrast (estimate + CI) format
-#          already used for the primary and NH-stratified results. A coauthor
-#          flagged (2026-07-31) that citing spline edf per stratum is not a
-#          helpful way to communicate this comparison to readers; the
-#          manuscript now reports the estimate/CI columns below instead (edf
-#          is still computed and retained in the output for reference).
-#          Computed within each stratum's own model (NOT the Q1-vs-Q5
-#          baseline gap, which is already reported in
-#          extract_ice_effect_modification_contrasts.R).
-#
-# Method:  Same lpmatrix/delta-method approach as extract_numeric_results.R
-#          (Q25-to-Q50, Q50-to-Q75, Q25-to-Q75 contrasts, smooth centered at
-#          Q50), applied separately to each of the four stratum-city models.
-#
-# Models:  ndvi_ice_q1_q5_fit.rds
-#          (fit in generate_linear_ice_outl_figures.R: fully adjusted linear
-#          GAMs, fit separately per city within each ICE quintile stratum, on
-#          the outlier-excluded sample.)
-#
-# Output:  output/numeric_results_ice_ndvi_quartile_contrasts.csv
-# =============================================================================
+# Purpose: Quantifies the CSI-NDVI slope within each ICE stratum (Q1 vs Q5)
+#          per city, for the Secondary analysis text.
 
 
 # =============================================================================

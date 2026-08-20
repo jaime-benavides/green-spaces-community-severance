@@ -1,5 +1,9 @@
 rm(list = ls())
 
+# generate_linear_ice_outl_figures.R
+# Purpose: Builds the primary NDVI/proximity figures (Figs 2, 3) and fits
+#          the ICE Q1/Q5 stratified models (used in Fig 4).
+
 project.folder <- paste0(print(here::here()), "/")
 source(paste0(project.folder, "init_directory_structure.R"))
 source(paste0(functions.folder, "script_initiate.R"))

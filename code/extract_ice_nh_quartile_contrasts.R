@@ -9,24 +9,9 @@ library(dplyr)
 library(tibble)
 library(readr)
 
-# =============================================================================
 # extract_ice_nh_quartile_contrasts.R
-#
-# Purpose: Quantify the "similar declines" claim in the Secondary analysis
-#          paragraph of sn-article.tex (CSI x neighboring-home visits,
-#          stratified by ICE income quintile). For each city, computes the
-#          CSI Q25-to-Q75 quartile contrast (IRR) SEPARATELY within the Q1
-#          (most disadvantaged) and Q5 (most advantaged) ICE strata, using
-#          the same lpmatrix/delta-method approach as
-#          extract_numeric_results.R (Supplementary Table S2).
-#
-# Models:  neighbor_visit_ice_q1_q5_fit_2019_full_year.rds
-#          (fit in models_neighbor_visits_annual_average.R, lines ~176-221:
-#          fully adjusted GAMs, fit separately per city within each ICE
-#          quintile stratum, on the primary outlier-excluded sample.)
-#
-# Output:  output/numeric_results_ice_nh_quartile_contrasts.csv
-# =============================================================================
+# Purpose: Quantifies the CSI-NH-visits quartile contrast (IRR) within each
+#          ICE stratum (Q1 vs Q5) per city, for the Secondary analysis text.
 
 
 # =============================================================================

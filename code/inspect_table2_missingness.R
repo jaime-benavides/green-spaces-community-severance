@@ -8,13 +8,9 @@ library(sf)
 library(ggplot2)
 library(patchwork)
 
-# ---- Purpose ---------------------------------------------------------------
-# Diagnoses missingness in Table 2 (exposure and covariates): for each
-# variable with missing values, reports (a) the share of missing-value
-# tracts that are non-residential (population density = 0), and (b) maps
-# the location of the missing tracts in each city. Written to verify the
-# manuscript's stated explanation for Table 2 missingness (sn-article.tex,
-# Results, Table 2 paragraph). Logged in CODE_REVIEW.md.
+# inspect_table2_missingness.R
+# Purpose: Reproduces the Table 2 missingness footnote check (share of
+#          missing-value tracts that are non-residential, by city).
 
 # ---- Load analytic dataset and geometry ------------------------------------
 

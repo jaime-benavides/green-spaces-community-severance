@@ -1,5 +1,9 @@
 rm(list = ls())
 
+# regenerate_manuscript_figures.R
+# Purpose: Regenerates all manuscript smooth figures from saved model
+#          objects, including Fig 4 and sensitivity Figs S3/S4.
+
 project.folder <- paste0(print(here::here()), "/")
 source(paste0(project.folder, "init_directory_structure.R"))
 source(paste0(functions.folder, "script_initiate.R"))

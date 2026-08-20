@@ -1,3 +1,6 @@
+# prep_building_density.R
+# Purpose: Computes tract-level building density from footprint rasters.
+
 library(dplyr)
 
 library(osmdata)

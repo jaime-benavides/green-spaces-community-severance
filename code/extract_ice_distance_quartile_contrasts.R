@@ -9,30 +9,9 @@ library(dplyr)
 library(tibble)
 library(readr)
 
-# =============================================================================
 # extract_ice_distance_quartile_contrasts.R
-#
-# Purpose: Quantify the CSI-distance-to-nearest-green-space slope within each
-#          ICE stratum (Q1 most disadvantaged, Q5 most advantaged) for each
-#          city, so the Secondary analysis paragraph of sn-article.tex can
-#          state whether there is quantitative evidence of effect
-#          modification for this outcome (previously described only
-#          qualitatively as "Q5 declined somewhat more steeply than Q1").
-#          Mirrors extract_ice_ndvi_quartile_contrasts.R, adapted for the
-#          Gamma/log-link proximity models.
-#
-# Method:  Same lpmatrix/delta-method approach as extract_numeric_results.R
-#          (Q25-to-Q50, Q50-to-Q75, Q25-to-Q75 contrasts, smooth centered at
-#          Q50), applied separately to each of the four stratum-city models,
-#          back-transformed to a ratio scale (exponentiated, log link).
-#
-# Models:  greenspace_ice_q1_q5_fit.rds
-#          (fit in generate_linear_ice_outl_figures.R: fully adjusted Gamma
-#          regression GAMs, fit separately per city within each ICE quintile
-#          stratum, on the outlier-excluded sample.)
-#
-# Output:  output/numeric_results_ice_distance_quartile_contrasts.csv
-# =============================================================================
+# Purpose: Quantifies the CSI-distance-to-green-space slope within each ICE
+#          stratum (Q1 vs Q5) per city, for the Secondary analysis text.
 
 
 # =============================================================================

@@ -1,5 +1,9 @@
 rm(list = ls())
 
+# prep_neighbor_visits_annual_average.R
+# Purpose: Aggregates NH visits to tract-level annual averages; restricts
+#          to green-space CBGs.
+
 project.folder = paste0(print(here::here()), '/')
 source(paste0(project.folder, 'init_directory_structure.R'))
 source(paste0(functions.folder, 'script_initiate.R'))

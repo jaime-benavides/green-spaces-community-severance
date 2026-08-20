@@ -1,5 +1,9 @@
 rm(list = ls())
 
+# generate_supp_table_nh_missingness.R
+# Purpose: Builds Supplementary Table S1 comparing NH-missing tracts to
+#          the NH analytic sample.
+
 project.folder <- paste0(print(here::here()), "/")
 source(paste0(project.folder, "init_directory_structure.R"))
 

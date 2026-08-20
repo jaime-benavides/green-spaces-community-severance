@@ -6,36 +6,9 @@ source(paste0(project.folder, "init_directory_structure.R"))
 library(dplyr)
 library(sf)
 
-# =============================================================================
 # generate_supp_table_outlier_geography.R
-#
-# Purpose: Coauthor question on the sensitivity-analysis paragraph of
-#          sn-article.tex (full-sample results, Supplementary Figure S4)
-#          asked whether the tracts excluded by the primary |z_CSI| > 2 rule
-#          have distinguishing geographic/built-environment characteristics.
-#          Builds the supplementary table answering this: tract area,
-#          population density, building density, and CSI, compared between
-#          outlier and within-range tracts, by city. (Distance to the city
-#          boundary is deliberately excluded here because it is sensitive
-#          to which tracts define the city union polygon and is not a
-#          robust number to publish.)
-#
-#          The |z_CSI| > 2 rule flags both tails of the CSI distribution.
-#          In LA, all outlier tracts are high-CSI (z > 2); in NYC, outliers
-#          split into a high-CSI group (z > 2) and a low-CSI group (z < -2),
-#          and these two NYC subgroups have materially different area,
-#          density, and built-environment profiles. Pooling them into a
-#          single "outlier" column produces a CSI median/IQR that mixes both
-#          tails and is not interpretable, so NYC is reported with separate
-#          high-CSI and low-CSI outlier columns; LA keeps a single outlier
-#          column since it has no low-CSI outliers.
-#
-# Inputs:  data/generated/data_models.rds (has outlier_flag, community_severance_index)
-#          data/generated/krieger_ice_la.rds, krieger_ice_nyc.rds (tract geometries, for area)
-#
-# Output:  output/supp_table_outlier_geography.tex
-#          (copied to manuscript/tables/supp_table_outlier_geography.tex)
-# =============================================================================
+# Purpose: Builds Supplementary Table S3 comparing tract area, density, and
+#          CSI between outlier and within-range tracts, by city.
 
 dt <- readRDS(paste0(generated.data.folder, "data_models.rds"))
 

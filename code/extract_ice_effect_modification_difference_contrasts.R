@@ -8,37 +8,9 @@ library(dplyr)
 library(tibble)
 library(readr)
 
-# =============================================================================
 # extract_ice_effect_modification_difference_contrasts.R
-#
-# Purpose: Replace the informal "the two ICE-stratum CIs overlapped, so this
-#          does not provide clear evidence of effect modification" heuristic
-#          in the Secondary analysis Results (sn-article.tex) with an
-#          explicit Q1-vs-Q5 CONTRAST-OF-CONTRASTS estimate that has its own
-#          95% CI, for the Q25-to-Q75 CSI quartile contrast within each ICE
-#          stratum, city, and outcome.
-#
-#          This follows the same convention as bne_uncertainty_ses_multiyear
-#          (03_explore_results/contrast_main_rev.R, compute_strata_delta()):
-#          the Q1 and Q5 stratum-specific quartile-contrast estimates are
-#          from two SEPARATE models fit on disjoint (non-overlapping) tract
-#          subsets, so they are statistically independent, and
-#            Var(contrast_Q5 - contrast_Q1) = Var(contrast_Q5) + Var(contrast_Q1).
-#          Each stratum's SE is recovered from its already-reported 95% CI
-#          width (CI = estimate +/- 1.96*SE), on the scale the stratum
-#          estimate was originally computed on (log scale for ratio/IRR
-#          outcomes, natural scale for the Gaussian NDVI estimate), i.e. the
-#          same ci_to_se() logic used in contrast_main_rev.R.
-#
-# Inputs:  output/numeric_results_ice_nh_quartile_contrasts.csv
-#          output/numeric_results_ice_ndvi_quartile_contrasts.csv
-#          output/numeric_results_ice_distance_quartile_contrasts.csv
-#          (produced by extract_ice_nh_quartile_contrasts.R,
-#           extract_ice_ndvi_quartile_contrasts.R,
-#           extract_ice_distance_quartile_contrasts.R)
-#
-# Output:  output/numeric_results_ice_effect_modification_difference_contrasts.csv
-# =============================================================================
+# Purpose: Computes an explicit Q1-vs-Q5 contrast-of-contrasts (with CI) for
+#          the CSI quartile effect, cited in the Secondary analysis text.
 
 ci_to_se <- function(low, high) (high - low) / (2 * 1.96)
 

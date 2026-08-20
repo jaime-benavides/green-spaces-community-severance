@@ -9,46 +9,9 @@ library(dplyr)
 library(tibble)
 library(readr)
 
-# =============================================================================
 # extract_ice_effect_modification_contrasts.R
-#
-# Purpose: Quantify the Q1 (most disadvantaged) vs Q5 (most advantaged) ICE
-#          gap for each outcome x city at Q25/Q50/Q75 of the (pooled, primary,
-#          outlier-excluded) city-specific CSI distribution, with 95% CIs.
-#
-# Method:  Q1 and Q5 are fit as SEPARATE GAMs on non-overlapping tract subsets
-#          (see generate_linear_ice_outl_figures.R / generate_nh_ice_q1_q5_figure.R),
-#          not a single model with an interaction term. For each model, the
-#          fitted value at a given CSI is intercept + s(CSI), with all other
-#          covariates held at their stratum-specific means (rather than
-#          zero; this stratum-mean-covariate convention is reimplemented
-#          inline below via build_template()/extract_intercept_csi_lpblock()):
-#          a zero-covariate tract is an unrealistic reference point, so the
-#          model intercept is replaced with intercept + covariate effects
-#          evaluated at the stratum's mean covariate values, added to the
-#          (zero-centered) marginal CSI smooth.
-#          The gap Q5 - Q1 (or its response-scale analogue) is then a linear
-#          (Gaussian) or delta-method (log-link) combination of two
-#          INDEPENDENT model fits (disjoint tract sets), so
-#            Var(gap) = Var(pred_Q5) + Var(pred_Q1).
-#          This mirrors the lpmatrix delta-method approach used in
-#          extract_numeric_results.R / main_anchored_quartile_contrasts.R in
-#          bne_uncertainty_ses_multiyear, adapted for a between-model (rather
-#          than within-model) contrast.
-#
-# Output:  output/numeric_results_ice_effect_modification.csv
-#
-# Status:  Diagnostic only. This script's output is not cited by any number
-#          in the manuscript and does not feed any manuscript figure — the
-#          Q1-vs-Q5 comparison it computes (a baseline-level gap between two
-#          independently fit models) is not part of the study design. The
-#          manuscript's Secondary analysis reports effect modification via
-#          extract_ice_effect_modification_difference_contrasts.R instead
-#          (a Q5-vs-Q1 contrast of each stratum's own CSI-quartile effect,
-#          not a baseline-level gap). Figure 4 (plot_ice_overlay() in
-#          functions.R) uses the same centered/ratio-scale transform as
-#          Figures 2/3, not this script's stratum-mean-covariate convention.
-# =============================================================================
+# Purpose: Quantifies the Q1-vs-Q5 ICE gap for each outcome and city at CSI
+#          Q25/Q50/Q75. Diagnostic only — not cited in the manuscript.
 
 
 # =============================================================================
