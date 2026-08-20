@@ -7,19 +7,17 @@ library(dplyr)
 library(readr)
 library(stringr)
 
-# Canonical CBG-level sources from dewey_dta_walking project.
+# Canonical CBG-level sources from the dewey_dta_walking project, copied into
+# data/raw/neigh_home/ (see PROVENANCE.md there).
 # Primary: 15,483 CBGs (NYC + LA) from the main Advan pipeline.
 # Supplementary: 949 CBGs from a second pipeline run covering 258 tracts
 #   absent from the primary output (no GEOID overlap between the two sources).
 # Both files are archival outputs; do not edit them here.
 
-dewey_path <- "/Users/jaimebenavides/claude_cowork/dewey_dta_walking/data/outputs/"
-
-primary_path <- paste0(dewey_path,
-  "2019_neighbor_home/2019_full_year_neighbor_home_nyc_la_annual_average.csv")
-supp_path <- paste0(dewey_path,
-  "2019_neighbor_home_supplementary/",
-  "2019_full_year_neighbor_home_supplementary_annual_average.csv")
+primary_path <- paste0(raw.data.folder,
+  "neigh_home/2019_full_year_neighbor_home_nyc_la_annual_average.csv")
+supp_path <- paste0(raw.data.folder,
+  "neigh_home/2019_full_year_neighbor_home_supplementary_annual_average.csv")
 
 output_path <- paste0(raw.data.folder,
   "neigh_home/2019_full_year_neighbor_home_nyc_la_cbg_combined.csv")

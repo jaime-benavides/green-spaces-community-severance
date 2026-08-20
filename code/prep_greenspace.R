@@ -31,8 +31,10 @@ geo <- "tract"   # krieger() supports 'tract' and 'county' (not 'block group')
 crs <- 2163
 # 🔑 Your Census API key (must be set once)
 # census_api_key("YOUR_API_KEY", install = TRUE)
-dta_path <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/green_infrastructure/"
-dta_demographic_path <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/demography/"
+# NDVI (Brochu et al. 2022) and PAD-US AR (Browning et al. 2022) — see README.md "Data" > "green infrastructure" for download links
+dta_path <- paste0(raw.data.folder, "green_infrastructure/")
+# U.S. Census 2020 Population Centers (CenPop2020) tract mean-center files — see README.md "Data" > "demography" for download link
+dta_demographic_path <- paste0(raw.data.folder, "demography/")
 file_name <- "NDVI_US_MajorCities_Tracts_2000_2010_2019.csv"
 dta_green_spaces <- readr::read_csv(paste0(dta_path, file_name))
 dta_green_spaces <- dta_green_spaces[,c("CBSA_GEOID","GEOID19", "POP2019", "NDVI2019")]
@@ -60,7 +62,8 @@ saveRDS(dta_la_green_spaces, paste0(generated.data.folder, "ndvi_la_census_tract
 # pad-us ar
 padus_ar <- sf::read_sf(paste0(dta_path, "padus_ar.shp")) %>%
   sf::st_transform(crs)
-city_boundaries_path <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/demography/us/urban/500Cities_City_11082016/"
+# CDC 500 Cities city boundaries — see README.md "Data" > "demography" for download link
+city_boundaries_path <- paste0(raw.data.folder, "demography/500Cities_City_11082016/")
 city_boundaries <- sf::read_sf(paste0(city_boundaries_path, "CityBoundaries.shp")) %>%
   sf::st_transform(crs)
 city_boundary_nyc_raw <- city_boundaries[which(city_boundaries$NAME == "New York"),] %>%
@@ -74,7 +77,8 @@ nyc_only_ids <- sapply(sf::st_intersects(padus_ar, city_boundary_nyc_raw),functi
 padus_ar_nyc_only <- padus_ar[nyc_only_ids, ]
 
 # check for nyc how much of the green space is water body
-water_bodies_nyc <- sf::st_read('/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/geom/NYC_Planimetrics_2022.gdb', layer = "Hydrography") %>%
+# NYC Planimetric Database (water body geometry) — see README.md "Data" > "geometry" for download link
+water_bodies_nyc <- sf::st_read(paste0(raw.data.folder, "geometry/NYC_Planimetrics_2022.gdb"), layer = "Hydrography") %>%
 sf::st_transform(crs)
 
 water_within_padus <- sf::st_intersection(
@@ -83,7 +87,7 @@ water_within_padus <- sf::st_intersection(
 )
 
 # in the case of nyc mental health community severance, only important in zip codes
-acs.dt <- readRDS('/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/workspace/community_severance_nys_climate_change_mh/data/generated/acs_dt.rds')
+acs.dt <- readRDS(paste0(raw.data.folder, "acs/acs_dt.rds"))
 acs.wide <- spread(acs.dt[,1:4], variable, estimate)  
 names(acs.wide)[3:6] <- c("popn", "black", "hisp", "pov") 
 # estimate percentages
@@ -214,15 +218,16 @@ padus_ar_nyc <- sf::st_transform(padus_ar_nyc, crs)
 
 sf::st_crs(dta_nyc_green_spaces)
 sf::st_crs(padus_ar_nyc)
-sf::st_crs(edges_nyc_sf)
 
 
-faf5_network <- sf::read_sf(paste0("/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/workspace/community_severance_us/data/raw/", "geometry/FAF5Network.gdb"))
+# ORNL Freight Analysis Framework (FAF5) road network — see README.md "Data" > "geometry" for download link
+faf5_network <- sf::read_sf(paste0(raw.data.folder, "geometry/FAF5Network.gdb"))
 faf5_highways <- faf5_network[which(faf5_network$F_Class %in% c(1,2,3)),]
 faf5_highways <- faf5_highways %>%
   sf::st_transform(crs)
 
-city_boundaries_path <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/demography/us/urban/500Cities_City_11082016/"
+# CDC 500 Cities city boundaries — see README.md "Data" > "demography" for download link
+city_boundaries_path <- paste0(raw.data.folder, "demography/500Cities_City_11082016/")
 city_boundaries <- sf::read_sf(paste0(city_boundaries_path, "CityBoundaries.shp")) %>%
   sf::st_transform(crs)
 

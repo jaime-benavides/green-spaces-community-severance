@@ -8,7 +8,8 @@ library(purrr)
 crs <- 2163
 # 1️⃣ Get the bounding box for Los Angeles
 getcityboudingbox <- tmaptools::geocode_OSM("Los Angeles, California, USA", as.sf = TRUE)
-city_boundaries_path <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/demography/us/urban/500Cities_City_11082016/"
+# CDC 500 Cities city boundaries — see README.md "Data" > "demography" for download link
+city_boundaries_path <- paste0(raw.data.folder, "demography/500Cities_City_11082016/")
 city_boundaries <- sf::read_sf(paste0(city_boundaries_path, "CityBoundaries.shp")) %>%
   sf::st_transform(crs)
 
@@ -18,7 +19,8 @@ nyc_num <- which(city_boundaries$NAME == "New York")
 nyc_city_boundary <- city_boundaries[nyc_num,]
 # buildings
 
-buildings_path <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/geom/buildings/"
+# Heris et al. 2020 building footprint density rasters — see README.md "Data" > "geometry" > "buildings" for download link
+buildings_path <- paste0(raw.data.folder, "geometry/buildings/")
 
 ny_building_area <- terra::rast(paste0(buildings_path, "NewYork/", "NewYork_sum.tif"))
 ca_building_area <- terra::rast(paste0(buildings_path, "California/", "California_sum.tif"))

@@ -15,10 +15,12 @@ nyc_csi <- readRDS(paste0(generated.data.folder, "community_severance_nyc_census
 la_csi <- readRDS(paste0(generated.data.folder, "community_severance_la_census_tract.rds"))
 la_csi$GEOID <- substring(la_csi$GEOID, 2)
 
-path_demography <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/demography/us/"
-neigh_nyc <- sf::st_read(paste0(path_demography, "nyc/uhf42_dohmh_2009/UHF_42_DOHMH_2009.shp"))
+path_demography <- paste0(raw.data.folder, "demography/")
+# NYC UHF42 neighborhood boundaries — see README.md "Data" > "demography" for download link
+neigh_nyc <- sf::st_read(paste0(path_demography, "uhf42_dohmh_2009/UHF_42_DOHMH_2009.shp"))
 neigh_nyc <- sf::st_transform(neigh_nyc, crs)
-neigh_la <- sf::st_read(paste0(path_demography,"urban/Community_Plan_Areas_la/Community_Plan_Areas.shp")) 
+# LA Community Plan Area boundaries — see README.md "Data" > "demography" for download link
+neigh_la <- sf::st_read(paste0(path_demography,"Community_Plan_Areas_la/Community_Plan_Areas.shp"))
 neigh_la <- sf::st_transform(neigh_la, crs)
 
 # building density

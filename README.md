@@ -1,60 +1,165 @@
-# Green Spaces and Community Severance
+# green_spaces_community_severance
+Repository for reviewing the code of the project Community Severance and Green Space Accessibility in New York City and Los Angeles
 
-Analysis code for the study: **"Community Severance and Green Space Accessibility in New York City and Los Angeles"**
+note: please run init_directory_structure.R first to create folders. Also run this script before doing anything else, currently done via source(paste0(project.folder,'init_directory_structure.R'), to ensure that the folder locations are known in each script
 
-This repository contains the R scripts used to estimate associations between the Community Severance Index (CSI) and three complementary measures of green space accessibility — neighboring-home visits to publicly accessible green spaces, NDVI, and distance to the nearest public green space — across census tracts in New York City and Los Angeles in 2019.
+See `CODE_REVIEW.md` for the full step-by-step reproduction guide, including a manuscript-section-to-code cross-reference table and diagnostic-only scripts not part of the manuscript pipeline.
 
-## Data availability
+## Code and data generated (file name - short description)
 
-Raw input data are not included in this repository. The analysis requires:
+### Data preparation list:
 
-- Advan Research Neighborhood Patterns Plus data (accessed via Dewey Data platform)
-- PAD-US Areas of Recreation (U.S. Geological Survey)
-- Landsat-derived tract-level NDVI (Brochu et al. 2022)
-- U.S. Census 2015–2019 ACS 5-year estimates (via `tidycensus`)
-- Road infrastructure and traffic inputs for CSI construction (stored on external drive)
-- 500 Cities project city boundary shapefile (CDC)
+prep_ses.R - ACS tract-level socioeconomic indicators and Index of Concentration at the Extremes (ICE)
 
-Several intermediate `.rds` files are present in `data/generated/` (not tracked in this repository), allowing downstream scripts (Steps 5b onwards) to be run without the external data sources.
+- ses_ice_nyc.rds, ses_ice_la.rds - SES variables with sf geometry
+- krieger_ice_nyc.rds, krieger_ice_la.rds - ICE indices
+- acs_ses.rds - ACS summary object
 
-## Repository structure
+prep_csi.R - population-weighted Community Severance Index (CSI) aggregation to census tract
 
-```
-code/                        Analysis scripts (see execution order below)
-code/functions/functions.R   Shared helper and model-fitting functions
-code/packages/               Package loading
-```
+- community_severance_nyc_census_tract.rds
+- community_severance_la_census_tract.rds
 
-## Execution order
+prep_greenspace.R - NDVI and Euclidean distance to nearest public green space
 
-Steps 1–6 require external data. Steps 7 onwards can be run using pre-generated files in `data/generated/`.
+- ndvi_nyc_census_tract.rds, ndvi_la_census_tract.rds
+- cs_access_euclidean_nyc.rds, cs_access_euclidean_la.rds
 
-| Step | Script | Description |
-|------|--------|-------------|
-| 1 | `code/prep_ses.R` | ACS tract-level socioeconomic indicators and ICE |
-| 2 | `code/prep_csi.R` | Population-weighted CSI aggregation to census tract |
-| 3 | `code/prep_greenspace.R` | NDVI and Euclidean distance to nearest green space |
-| 4 | `code/prep_building_density.R` | Tract-level building density |
-| 5a | `code/models_linear.R` | NDVI (Gaussian GAM) and proximity (Gamma GAM) models |
-| 5b | `code/prep_cbg_nh_combined.R` | Merges primary and supplementary Advan CBG-level NH files |
-| 6 | `code/prep_neighbor_visits_annual_average.R` | Aggregates NH visits to tract-level annual averages; restricts to green-space CBGs |
-| 7 | `code/models_neighbor_visits_annual_average.R` | Neighboring-home visits GAMs (negative binomial) |
-| 7b | `code/generate_nh_ice_q1_q5_figure.R` | NH ICE Q1/Q5 stratified figure |
-| 7c | `code/generate_linear_ice_outl_figures.R` | NDVI/proximity ICE Q1/Q5 and outlier-excluded figures |
-| 7d | `code/generate_figure1_maps.R` | Figure 1 and supplementary spatial maps |
-| 7e | `code/regenerate_manuscript_figures.R` | Regenerates all manuscript smooth figures from saved model objects (no re-fitting) |
-| 8a | `code/table1_outcome_descriptives_neighbor_visits.R` | Descriptive tables |
-| 8b2 | `code/generate_supp_table_nh_missingness.R` | Supplementary Table S1 |
-| 8c | `code/extract_numeric_results.R` | Q25-to-Q75 quartile contrasts — source of Table S2 and Results-text numbers |
-| 8d | `code/generate_nh_distribution_figure.R` | NH visits distribution figure |
+prep_building_density.R - tract-level building density
 
-See `CODE_REVIEW.md` for the full reproduction guide, including diagnostic-only scripts not part of the manuscript pipeline (`inspect_nh_missingness.R`, `map_uncovered_cbgs_nh.R`, `diagnose_nh_exclusion_reason.R`, `diagnose_ndvi_missing_reason.R`, `inspect_table2_missingness.R`).
+- building_dens_nyc.rds, building_dens_la.rds
 
-Steps 6 and 7 can be run together:
+prep_cbg_nh_combined.R - merges primary and supplementary Advan CBG-level neighboring-home (NH) files
 
-```bash
-Rscript code/run_neighbor_visits_workflow.R
-```
+- 2019_full_year_neighbor_home_nyc_la_cbg_combined.csv - single canonical CBG-level NH input for all downstream processing
+
+prep_neighbor_visits_annual_average.R - aggregates NH visits to tract-level annual averages; restricts to green-space CBGs
+
+- data_models_neighbor_visits_annual_average_2019_full_year.rds - full modeling dataset joined with NH metrics
+- neighbor_visit_annual_average_2019_full_year_tract.rds / .csv - tract-level NH metrics (green-space CBGs only)
+
+### Statistical models list:
+
+models_linear.R - NDVI (Gaussian GAM) and proximity (Gamma GAM) models
+
+- data_models.rds - base modeling dataset (N=3,312 tracts; NYC=2,164, LA=1,148)
+- ndvi_model_objects_city_adjusted_linear.rds, ndvi_model_objects_city_crude_linear.rds
+- greenspace_model_objects_city_adjusted_linear.rds, greenspace_model_objects_city_crude_linear.rds
+
+models_neighbor_visits_annual_average.R - neighboring-home visits GAMs (negative binomial)
+
+- neighbor_visit_annual_average_model_objects_2019_full_year.rds - all model objects
+- neighbor_visit_primary_fit_city_{nyc,la}_2019_full_year.rds - adjusted models
+- neighbor_visit_primary_crude_fit_city_{nyc,la}_2019_full_year.rds - crude models
+- neighbor_visit_ice_q1_q5_fit_2019_full_year.rds - ICE Q1/Q5 model objects
+
+run_neighbor_visits_workflow.R - orchestrates prep_neighbor_visits_annual_average.R + models_neighbor_visits_annual_average.R (Steps 6-7)
+
+### Figures and tables list:
+
+generate_nh_ice_q1_q5_figure.R - NH ICE Q1/Q5 stratified figure
+
+- models_result_neighbor_visit_q1_q5_ICE_inc_2019_full_year.png - NH ICE model object source (combined into Fig 4)
+
+generate_linear_ice_outl_figures.R - NDVI/proximity ICE Q1/Q5 and outlier-excluded figures (primary manuscript figures)
+
+- ndvi_ice_q1_q5_fit.rds, greenspace_ice_q1_q5_fit.rds - ICE Q1/Q5 model objects (used for Fig 4)
+- models_result_ndvi_proximity_primary.png - Figure 3
+- models_result_neighbor_visit_annual_avg_no_outliers_2019_full_year.png - Figure 2
+
+regenerate_manuscript_figures.R - regenerates all manuscript smooth figures from saved model objects (no re-fitting), including Figure 4 and sensitivity Figures S3/S4
+
+generate_figure1_maps.R - Figure 1 and supplementary spatial maps
+
+- figure1_nh_csi_maps.png - Figure 1
+- supp_map_ice_inc.png - Figure S1, panel (a)
+- supp_map_ice_q1_q5.png - Figure S1, panel (b)
+
+table1_outcome_descriptives_neighbor_visits.R - Table 1 (outcomes, exposure & covariates)
+
+- table1_descriptives_2019_full_year.tex
+
+generate_supp_table_nh_missingness.R - Supplementary Table S1 (missing vs. analytic sample)
+
+- supp_table_nh_missingness.tex
+
+extract_numeric_results.R - Q25-to-Q75 quartile contrasts, the source of Table S2 and Results-text numbers
+
+- numeric_results_quartile_contrasts.csv
+
+generate_supp_table_s2_per_iqr.R - Supplementary Table S2, generated from numeric_results_quartile_contrasts.csv
+
+extract_outlier_exclusion_counts.R - "excluded tracts" numbers cited in-text
+
+extract_tract_area_by_city.R - tract area by city, context for the LA-vs-NYC distance comparison
+
+generate_supp_table_outlier_geography.R - Supplementary Table S3 (outlier-tract geography and built environment)
+
+generate_nh_distribution_figure.R - NH visits distribution figure (Fig S2a)
+
+extract_ice_nh_quartile_contrasts.R, extract_ice_ndvi_quartile_contrasts.R, extract_ice_distance_quartile_contrasts.R, extract_ice_effect_modification_contrasts.R, extract_ice_effect_modification_difference_contrasts.R - ICE-stratified (Q1/Q5) quartile contrasts and effect-modification statistics cited in §3.5
+
+extract_manuscript_misc_counts.R - missingness/sample-size counts cited in-text
+
+run_manuscript_audit.R - reruns every extraction/diagnostic script feeding code/audit_manifest.csv and checks each numeric claim in sn-article.tex against its computed source value
+
+- output/manuscript_audit_results.csv
+
+### Diagnostics list (not part of the manuscript pipeline):
+
+table_distribution_missingness_neighbor_visits.R - diagnostic variable-distribution table
+
+diagnose_ndvi_missing_reason.R, diagnose_nh_exclusion_reason.R, diagnose_outlier_tract_geography.R - diagnose exclusion/missingness reasons behind analytic-sample counts
+
+inspect_nh_missingness.R, inspect_table2_missingness.R - missingness inspection utilities
+
+map_uncovered_cbgs_nh.R - maps CBGs without a qualifying green-space match
+
+## Data (data) list:
+
+### Self-generated (copied into data/raw/, description - file name - provenance):
+
+CSI factor scores (LA) - data/raw/csi/csi_scores_la.rds - author's own community_severance_us PCP + factor-analysis pipeline
+
+CSI factor scores (NYC) - data/raw/csi/csi_scores_nyc.rds - author's own community_severance_nyc PCP + factor-analysis pipeline
+
+Pre-processed ACS estimates table - data/raw/acs/acs_dt.rds - author's own community_severance_nys_climate_change_mh pipeline
+
+### Raw (description - file name - link to source)
+
+#### demography
+
+500 Cities city boundaries - CityBoundaries.shp - https://data.cdc.gov/500-Cities-Places/500-Cities-City-Boundaries/n44h-hy2j/about_data
+
+EPA Smart Location Database - SmartLocationDatabase.gdb - https://www.epa.gov/smartgrowth/smart-location-mapping#SLD
+
+NYC UHF42 neighborhood boundaries - UHF_42_DOHMH_2009.shp - https://www1.nyc.gov/site/doh/data/data-sets/maps-gis-data-files-for-download.page
+
+LA Community Plan Area boundaries - Community_Plan_Areas.shp - https://geohub.lacity.org/datasets/85f6c625014a40ad9dfcfdaf9f751aae_0/explore
+
+U.S. Census 2015-2019 ACS 5-year estimates - via tidycensus - https://walker-data.com/tidycensus/
+
+U.S. Census 2020 Population Centers, tract-level mean centers (CA, NY) - CenPop2020_Mean_TR06.txt, CenPop2020_Mean_TR36.txt - https://www2.census.gov/geo/docs/reference/cenpop2020/tract/
+
+#### green infrastructure
+
+PAD-US Areas of Recreation (curated) - padus_ar.shp - Browning et al. 2022, https://www.nature.com/articles/s41597-022-01857-7 (obtained directly from the original authors)
+
+Landsat-derived tract-level NDVI - NDVI_US_MajorCities_Tracts_2000_2010_2019.csv - Brochu et al. 2022, https://www.frontiersin.org/journals/public-health/articles/10.3389/fpubh.2022.841936/full (obtained directly from the original authors)
+
+#### geometry
+
+Freight Analysis Framework road network (FAF5), CSI input - FAF5Network.gdb - https://faf.ornl.gov/faf5/
+
+NYC water body geometry (Planimetric Database) - NYC_Planimetrics_2022.gdb, layer Hydrography - https://data.cityofnewyork.us/City-Government/NYC-Planimetric-Database-Open-Space-Parks-/y6ja-fw4f/about_data
+
+##### buildings
+
+Building footprint density rasters - NewYork_sum.tif, California_sum.tif - direct outputs of Heris et al. 2020, https://www.nature.com/articles/s41597-020-0542-3
+
+#### mobility
+
+Advan Research Neighboring Home visits - 2019 full-year CBG files (NYC + LA) - accessed via Dewey Data platform; restricted, cannot be publicly shared due to data use restrictions
 
 ## Software
 

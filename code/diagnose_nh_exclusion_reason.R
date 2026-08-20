@@ -14,7 +14,8 @@ options(tigris_use_cache = TRUE)
 # ---- Paths -------------------------------------------------------------------
 
 crs_proj <- 2163
-padus_ar_path <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/green_infrastructure/padus_ar.shp"
+# PAD-US Areas of Recreation (Browning et al. 2022) — see README.md "Data" > "green infrastructure" for download link
+padus_ar_path <- paste0(raw.data.folder, "green_infrastructure/padus_ar.shp")
 cbg_combined_path <- paste0(
   raw.data.folder,
   "neigh_home/2019_full_year_neighbor_home_nyc_la_cbg_combined.csv"

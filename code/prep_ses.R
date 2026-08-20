@@ -35,7 +35,8 @@ geo <- "tract"   # krieger() supports 'tract' and 'county' (not 'block group')
 crs <- 2163
 
 ### load data
-city_boundaries_path <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/demography/us/urban/500Cities_City_11082016/"
+# CDC 500 Cities city boundaries — see README.md "Data" > "demography" for download link
+city_boundaries_path <- paste0(raw.data.folder, "demography/500Cities_City_11082016/")
 city_boundaries <- sf::read_sf(paste0(city_boundaries_path, "CityBoundaries.shp")) %>%
   sf::st_transform(crs)
 

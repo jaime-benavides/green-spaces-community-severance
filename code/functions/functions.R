@@ -1,217 +1,3 @@
-#' get spatial context
-#'
-#' @export context_sp
-#'
-#########################################################################
-generate_osm_network <- function( #99% inspired by https://github.com/Spatial-Data-Science-and-GEO-AI-Lab/GreenExp_R/blob/main/R/accessibility.R but needed to have network prebuilt 
-    boundary,
-    city = NULL,
-    crs = 3395,
-    save_path = NULL,
-    max_file_size = 5e+09,
-    highway_types = NULL  # optional filter (e.g. c("residential", "footway", "path"))
-) {
-  # Ensure boundary has projected CRS
-  if (sf::st_is_longlat(boundary)) {
-    boundary <- sf::st_transform(boundary, crs)
-  } else {
-    crs <- sf::st_crs(boundary)
-  }
-  
-  # --- 1. Download OSM lines ---
-  message("🔹 Downloading OSM network data...")
-  if (!is.null(city)) {
-    lines <- osmextract::oe_get(
-      city,
-      boundary = boundary,
-      boundary_type = "spat",
-      max_file_size = max_file_size,
-      stringsAsFactors = FALSE
-    )
-  } else {
-    lines <- osmextract::oe_get(
-      boundary,
-      boundary = boundary,
-      boundary_type = "spat",
-      max_file_size = max_file_size,
-      stringsAsFactors = FALSE
-    )
-  }
-  
-  # --- 2. Filter by highway type (optional) ---
-  if (!is.null(highway_types)) {
-    message(paste0("🔹 Filtering network for highway types: ",
-                   paste(highway_types, collapse = ", ")))
-    if ("highway" %in% names(lines)) {
-      lines <- dplyr::filter(lines, highway %in% highway_types)
-    } else {
-      warning("No 'highway' field found in OSM data; skipping filter.")
-    }
-  } else {
-    message("✅ Using all available OSM edges (no highway filtering).")
-  }
-  
-  # --- 3. Transform and clip to boundary ---
-  lines <- sf::st_transform(lines, crs)
-  if (all(c("osm_id", "name") %in% names(lines))) {
-    lines <- dplyr::select(lines, "osm_id", "name")
-  } else {
-    lines <- lines
-  }
-  
-  lines <- lines[boundary, , op = sf::st_intersects]
-  
-  # --- 4. Convert to sfnetwork ---
-  message("🔹 Building sfnetwork object...")
-  net <- sfnetworks::as_sfnetwork(lines, directed = FALSE)
-  net <- tidygraph::convert(net, sfnetworks::to_spatial_subdivision)
-  
-  # --- 5. Keep the largest connected component ---
-  message("🔹 Extracting largest connected component...")
-  edges_sf <- tidygraph::activate(net, "edges") |> sf::st_as_sf()
-  touching <- sf::st_touches(edges_sf)
-  graph <- igraph::graph.adjlist(touching)
-  comps <- igraph::components(graph)
-  biggest <- names(which.max(table(comps$membership)))
-  edges_connected <- edges_sf[comps$membership == biggest, ]
-  net <- net |> tidygraph::activate("nodes") |> sf::st_filter(edges_connected, .pred = sf::st_intersects)
-  
-  # --- 6. Compute edge weights (lengths) ---
-  net <- tidygraph::mutate(
-    tidygraph::activate(net, "edges"),
-    weight = sfnetworks::edge_length()
-  )
-  
-  # --- 7. Optional save to file ---
-  if (!is.null(save_path)) {
-    if (!dir.exists(save_path)) dir.create(save_path, recursive = TRUE)
-    edges_sf <- tidygraph::activate(net, "edges") |> sf::st_as_sf()
-    sf::st_write(edges_sf, paste0(save_path, "/network.gpkg"), quiet = TRUE)
-    message(paste0("💾 Network edges saved to: ", save_path, "/network.gpkg"))
-  }
-  
-  message("✅ Network successfully created.")
-  return(net)
-}
-
-
-
-context_sp <- function(area_type = "municipality", area_name = "Barcelona", use_address = FALSE, address = "Carrer de Valencia 445, 08013 Barcelona, Spain",
-                       lon = 2.155278, lat = 41.38611, coords = NULL, geom_path = geom_path, buffer = NULL, area_shape = "circle", crs = 2163) {
-  if ((use_address == FALSE) && (is.numeric(lat) == TRUE)) {
-    if(length(lon) == 1){
-      coords_sp <- sf::st_sf(a=1, geom = sf::st_sfc(sf::st_point(c(lon,lat))), crs = "+proj=longlat +datum=WGS84")
-      coords_sp <- sf::st_transform(coords_sp, crs)
-    } else {
-      coords_sp <- sf::st_sf(a=1, geom = sf::st_sfc(sf::st_multipoint(matrix(c(lon,lat), ncol = 2), dim = "XY")), crs = "+proj=longlat +datum=WGS84")
-      coords_sp <- sf::st_transform(coords_sp, crs)
-    }
-  } else if (use_address == TRUE){
-    coords_sp <- get_loc_coord(address = address, spatial_df = TRUE, projection = "UTM")
-  } else if (!is.null(coords) == TRUE){
-    coords_sp <- coords
-  }
-  # grid_model <-  sf::read_sf(paste0(geom_path, "Malla_CAT_1km.shp"))
-  # grid_model_ij <- grid_model %>%
-  #   dplyr::select(I,J, geometry) %>%
-  #   sf::st_transform("+proj=utm +zone=31 +ellps=intl +units=m +no_defs")
-  if (area_type == "cell") {
-    # ref <- sf::st_intersection(grid_model_ij, coords_sp)
-    # if(length(unique(ref$I)) > 1){
-    #   sp_context <- grid_model_ij[unique(sapply(sf::st_intersects(coords_sp,grid_model_ij), function(z) if (length(z)==0) NA_integer_ else z[1])),]
-    # } else {
-    #   sp_context <- grid_model_ij[grid_model_ij$I == ref$I & grid_model_ij$J == ref$J,]
-    # }
-  } else if ((area_type == "municipality") && (!is.null(area_name))) {
-    # cat_munic <- sf::st_read(paste0(geom_path, "Catalunya_munic.shp"))
-    # sp_context <- cat_munic %>%
-    #   sf::st_transform("+proj=utm +zone=31 +ellps=intl +units=m +no_defs") %>%
-    #   dplyr::filter(NAME == area_name) %>%
-    #   sf:: st_as_sf( ) #%>%
-    # #sf::st_intersection(grid_model_ij)
-  } else if ((area_type == "address") && (!is.null(address))) {
-    # ref <- sf::st_intersection(coords_sp,grid_model_ij)
-    # sp_context <- grid_model_ij[grid_model_ij$I == ref$I & grid_model_ij$J == ref$J,]
-  } else if ((area_type == "district") && (!is.null(area_name))){
-    # districts <- sf::read_sf(paste0(geom_path, "BCN_Districte_ED50_SHP.shp"))
-    # sp_context <- districts %>%
-    #   sf::st_transform(23031) %>%
-    #   dplyr::filter(N_Distri == area_name) %>%
-    #   sf::st_as_sf() %>%
-    #   sf::st_transform("+proj=utm +zone=31 +ellps=intl +units=m +no_defs")
-  } else if ((area_type == "district") && (is.null(area_name)) && (!is.null(lon) & !is.null(lat))){
-    # districts <- sf::read_sf(paste0(geom_path, "BCN_Districte_ED50_SHP.shp"))
-    # districts_sf <- districts %>%
-    #   sf::st_transform(23031) %>%
-    #   sf::st_as_sf() %>%
-    #   sf::st_transform("+proj=utm +zone=31 +ellps=intl +units=m +no_defs")
-    # contains <- districts_sf %>%
-    #   sf::st_contains(coords_sp) %>%
-    #   as.numeric()
-    # sp_context <- districts_sf[which(contains == 1),]
-  } else if (area_type == "buffer" && area_shape == "square"){
-    sp_context <- sf::st_buffer(coords_sp, buffer, nQuadSegs = 1)
-  } else if (area_type == "buffer" && area_shape == "circle"){
-    sp_context <- sf::st_buffer(coords_sp, buffer)
-  }else {
-    print("we are not working yet in that spatial context. Do you think we should?")
-  }
-  # sp_context <- methods::as(sp_context, "Spatial")
-  if(!is.null(buffer) && is.numeric(buffer) && area_type != "buffer"){
-    #sp_context <- rgeos::gBuffer(sp_context,width=buffer,capStyle="FLAT")
-    sp_context <- sf::st_buffer(sp_context, buffer, nQuadSegs = 30)
-  }
-  return(sp_context)
-}
-
-# kriging from mid point 
-# adapted from Criado et al. (2022) https://earth.bsc.es/gitlab/es/universalkriging/-/blob/production/general/UK_mean.R
-regrid_ok <- function(non_uniform_data, target_grid,crs_sim = "+proj=utm +zone=31 +ellps=intl +units=m +no_defs"){
-  if(isTRUE(class(non_uniform_data) != "SpatialPointsDataFrame")){
-    non_uniform_data <- sp::SpatialPointsDataFrame(non_uniform_data[,c("X", "Y")],non_uniform_data)
-    sp::proj4string(non_uniform_data) <- crs_sim
-  }
-  vf_ok      <- automap::autofitVariogram(aadt ~ 1, non_uniform_data)
-  ok_regular <- gstat(formula = aadt ~ 1, data = non_uniform_data, model = vf_ok$var_model, nmax = 20) 
-  regular <- predict(ok_regular, target_grid)
-  regular_sf <- sf::st_as_sf(regular)
-  # regular <- sp::spTransform(regular, sp::CRS("+proj=longlat"))
-  # pixels <- sp::SpatialPixelsDataFrame(regular,tolerance = 0.99, as.data.frame(regular[,"var1.pred"]))
-  # mean_raster <- raster::raster(pixels[,'var1.pred'])
-  # return(mean_raster)}
-  return(regular_sf)}
-
-
-
-print_patterns_loc <- function (pats, colgroups = NULL, n = 1:6, pat_type = "pat", 
-                                title = "", size_line = 1, size_point = 1) 
-{
-  if (!is.null(colgroups)) {
-    colgroups <- colgroups %>% dplyr::rename(chem = !!names(colgroups)[1])
-  }
-  else {
-    colgroups <- data.frame(chem = rownames(pats), group = "1")
-  }
-  if (n > ncol(pats)) 
-    n <- ncol(pats)
-  grouping <- names(colgroups)[2]
-  colnames(pats) <- paste0(pat_type, stringr::str_pad(1:ncol(pats), 
-                                                      width = 2, pad = "0", side = "left"))
-  pats.df <- pats %>% tibble::as_tibble() %>% dplyr::mutate(chem = colgroups[[1]]) %>% 
-    tidyr::pivot_longer(-chem, names_to = "pattern", values_to = "loading") %>% 
-    dplyr::right_join(., colgroups, by = "chem")
-  pats.df$chem <- factor(as.character(pats.df$chem), levels = unique(as.character(pats.df$chem)))
-  loadings <- pats.df %>% dplyr::filter(pattern %in% paste0(pat_type, 
-                                                            stringr::str_pad(n, width = 2, pad = "0", side = "left"))) %>% 
-    ggplot(aes(x = chem, y = loading, color = !!sym(grouping))) + 
-    geom_point(size = size_point) + geom_segment(aes(yend = 0, xend = chem), size = size_line) + 
-    facet_wrap(~pattern) + theme_bw() + theme(legend.position = "bottom", legend.text = element_text(size=12), legend.title = element_text(size=14),
-                                              axis.text.x = element_text(angle = 45, hjust = 1, size = 14), strip.background = element_rect(fill = "white"), 
-                                              axis.title.x = element_blank(), axis.title.y = element_blank()) + 
-    geom_hline(yintercept = 0, size = 0.2) #+ ggtitle(title)
-  loadings
-}
-
  
 estimate_barrier_spatial_units  <- function(sp_unit_pos) { 
   sp_unit <- grid_contxt[sp_unit_pos[1],]
@@ -252,7 +38,6 @@ estimate_barrier_spatial_units  <- function(sp_unit_pos) {
   return(barr)
 }
 
-
 table_desc <- function(dta = data_uns, vars = vars, groups = groups, 
                        table_df = table_df, round = 2){
   for (group in groups){
@@ -270,82 +55,12 @@ table_desc <- function(dta = data_uns, vars = vars, groups = groups,
   return(table_df)
 }
 
-
 subset_q1_q5 <- function(data, ice_quintile_var) {
   subset(
     data,
     data[[ice_quintile_var]] %in% c("Q1 (Most Disadvantaged)", "Q5 (Most Advantaged)")
   )
 }
-
-fit_q1_q5_models <- function(data,
-                             ice_quint_var,
-                             model_fun,
-                             ice_cont_vars = NULL,
-                             family_type = NULL) {
-  
-  out <- list()
-  
-  # --- (A) Categorical models: Q1 vs Q5 only ----------------
-  dt_q1_q5 <- subset_q1_q5(data, ice_quint_var)
-  
-  out$cat_model <- model_fun(
-    dt_q1_q5,
-    by = ice_quint_var,
-    include_city = TRUE,
-    family_type = family_type
-  )
-  
-  # --- (B) Continuous ICE models with tensor interaction ----
-  if (!is.null(ice_cont_vars)) {
-    for (ice_cont in ice_cont_vars) {
-      out[[paste0("cont_model_", ice_cont)]] <- model_fun(
-        dt_q1_q5,
-        by = "none",
-        include_city = TRUE,
-        ice_cont = ice_cont,
-        family_type = family_type
-      )
-    }
-  }
-  
-  out
-}
-
-
-fit_q1_q5_models_old <- function(data,
-                             ice_quint_var,
-                             model_fun,
-                             ice_cont_vars = NULL) {
-  
-  out <- list()
-  
-  # --- (A) Categorical models: Q1 vs Q5 only ----------------
-  dt_q1_q5 <- subset_q1_q5(data, ice_quint_var)
-  
-  out$cat_model <- model_fun(
-    dt_q1_q5,
-    by = ice_quint_var,
-    include_city = TRUE
-  )
-  
-  # --- (B) Continuous ICE models with tensor interaction ----
-  if (!is.null(ice_cont_vars)) {
-    for (ice_cont in ice_cont_vars) {
-      out[[paste0("cont_model_", ice_cont)]] <-
-        model_fun(
-          dt_q1_q5,
-          by = "none",
-          include_city = TRUE,
-          ice_cont = ice_cont
-        )
-    }
-  }
-  
-  out
-}
-
-
 
 model_gam_mixed_ndvi <- function(
     data,
@@ -418,44 +133,9 @@ model_gam_mixed_ndvi <- function(
   )
 }
 
-
-
 # ============================================================
 # --- Helper Functions ---
 # ============================================================
-
-# Fit GAMs by subgroup safely -------------------------------
-fit_by_old <- function(data, by, model_fun, include_city = FALSE, ice_cont = NULL) {
-  # No grouping
-  if (by == "none") {
-    fit <- model_fun(data, by = "none", include_city = TRUE, ice_cont = ice_cont)
-    if (is.null(fit)) return(NULL)
-    return(list(fit_all = fit))
-  }
-  
-  # Check variable exists and has data
-  if (!by %in% names(data) || all(is.na(data[[by]]))) {
-    message("Skipping '", by, "' — variable missing or all NA.")
-    return(NULL)
-  }
-  
-  groups <- unique(na.omit(data[[by]]))
-  if (length(groups) == 0) return(NULL)
-  
-  fits <- lapply(groups, function(g) {
-    subset_data <- subset(data, data[[by]] == g)
-    model_fun(subset_data, by = by, include_city = include_city, ice_cont = ice_cont)
-  })
-  
-  valid <- !sapply(fits, is.null)
-  fits <- fits[valid]
-  
-  if (length(fits) > 0) {
-    names(fits) <- paste0("fit_", by, "_", tolower(groups[valid]))
-  }
-  
-  fits
-}
 
 library(dlnm)
 library(mgcv)
@@ -639,8 +319,6 @@ fit_by <- function(data, by, model_fun, include_city = FALSE, ice_cont = NULL, c
   fits
 }
 
-
-
 # Fit GAMs by city and ICE group safely ----------------------
 # Fit GAMs by city and ICE group safely ----------------------
 fit_city_ice <- function(data, model_fun, city_var = "city",
@@ -689,302 +367,6 @@ fit_city_ice <- function(data, model_fun, city_var = "city",
   }
   
   out
-}
-
-fit_city_ice_old <- function(data, model_fun, city_var = "city", ice_vars = NULL, ice_cont_vars = NULL) {
-  cities <- unique(na.omit(data[[city_var]]))
-  out <- list()
-  
-  for (c in cities) {
-    dt_city <- subset(data, data[[city_var]] == c)
-    
-    # City-level model
-    out[[paste0("fit_", tolower(c), "_city")]] <- model_fun(dt_city, by = "city")
-    
-    # ICE-level categorical models
-    if (!is.null(ice_vars)) {
-      for (ice in ice_vars) {
-        fits <- fit_by(dt_city, by = ice, model_fun = model_fun, include_city = TRUE)
-        if (!is.null(fits) && length(fits) > 0) {
-          names(fits) <- paste0("fit_", tolower(c), "_", names(fits))
-          out <- c(out, fits)
-        }
-      }
-    }
-    
-    # ICE-level continuous models with tensor interaction
-    if (!is.null(ice_cont_vars)) {
-      for (ice_cont in ice_cont_vars) {
-        fits <- fit_by(dt_city, by = "none", model_fun = model_fun, include_city = TRUE, ice_cont = ice_cont)
-        if (!is.null(fits) && length(fits) > 0) {
-          names(fits) <- paste0("fit_", tolower(c), "_", ice_cont)
-          out <- c(out, fits)
-        }
-      }
-    }
-  }
-  
-  out
-}
-
-
-# ================================================
-# Extract Q1 vs Q5 Categorical Models (generic)
-# ================================================
-get_q1_q5_categorical <- function(model_list) {
-  if (!"fits_q1_q5" %in% names(model_list)) {
-    stop("Model list does not contain $fits_q1_q5.")
-  }
-  
-  qmods <- model_list$fits_q1_q5
-  out <- list()
-  
-  for (branch in names(qmods)) {
-    cat_mod <- qmods[[branch]]$cat_model
-    if (!is.null(cat_mod)) {
-      out[[paste0(branch, "_categorical")]] <- cat_mod
-    }
-  }
-  
-  purrr::compact(out)
-}
-
-# ================================================
-# Extract Q1 vs Q5 Continuous ICE Models (generic)
-# ================================================
-get_q1_q5_continuous <- function(model_list) {
-  if (!"fits_q1_q5" %in% names(model_list)) {
-    stop("Model list does not contain $fits_q1_q5.")
-  }
-  
-  qmods <- model_list$fits_q1_q5
-  out <- list()
-  
-  for (branch in names(qmods)) {
-    m_inc  <- qmods[[branch]]$cont_model_ICE_inc
-    m_rewb <- qmods[[branch]]$cont_model_ICE_rewb
-    
-    if (!is.null(m_inc))
-      out[[paste0(branch, "_cont_ICE_inc")]] <- m_inc
-    
-    if (!is.null(m_rewb))
-      out[[paste0(branch, "_cont_ICE_rewb")]] <- m_rewb
-  }
-  
-  purrr::compact(out)
-}
-
-plot_q1_q5_categorical <- function(model_list, group = "all",
-                                   ice_var = "ICE_inc_quintile",
-                                   smooth_term = "s(community_severance_index)",
-                                   rug = TRUE) {
-  
-  # --- locate Q1 and Q5 models --- #
-  if(group == "all"){
-  quint_models <- model_list$fits_ice_quint[[ice_var]]
-  } else if (group == "nyc"){
-    quint_models <- model_list$fits_ice_quint_nyc[[ice_var]]  
-  } else if (group == "la"){
-    quint_models <- model_list$fits_ice_quint_la[[ice_var]]  
-  }
-  if (is.null(quint_models)) stop("No ICE quintile models found in model_list.")
-  
-  mod_q1 <- quint_models[[grep("q1", names(quint_models), ignore.case = TRUE)]]
-  mod_q5 <- quint_models[[grep("q5", names(quint_models), ignore.case = TRUE)]]
-  
-  if (is.null(mod_q1) | is.null(mod_q5)) stop("Q1 or Q5 model not found.")
-  
-  # --- extract smooths --- #
-  sm_q1 <- gratia::smooth_estimates(mod_q1, smooth = smooth_term) |> gratia::add_confint()
-  sm_q5 <- gratia::smooth_estimates(mod_q5, smooth = smooth_term) |> gratia::add_confint()
-  
-  # --- detect family --- #
-  fam <- mod_q1$family$family
-  linkinv <- mod_q1$family$linkinv
-  
-  intercept_q1 <- coef(mod_q1)[1]
-  intercept_q5 <- coef(mod_q5)[1]
-  
-  # beta: NDVI → clipped 0–1
-  if (grepl("Beta", fam, ignore.case = TRUE)) {
-    transform_fun <- function(x) pmin(pmax(linkinv(x), 0), 1)
-    y_lab <- "Predicted NDVI (0–1)"
-    title_lab <- "NDVI vs Community Severance"
-  }
-  # gamma: greenspace distance → no clipping
-  else if (grepl("Gamma", fam, ignore.case = TRUE)) {
-    transform_fun <- function(x) linkinv(x)
-    y_lab <- "Predicted Distance to Closest Greenspace (m)"
-    title_lab <- "Distance to Greenspace vs Community Severance"
-  }
-  # fallback
-  else {
-    transform_fun <- function(x) linkinv(x)
-    y_lab <- "Predicted Response"
-    title_lab <- "Response vs Community Severance"
-  }
-  
-  # --- transform estimates --- #
-  sm_q1 <- sm_q1 |> dplyr::mutate(
-    est   = transform_fun(intercept_q1 + .estimate),
-    lower = transform_fun(intercept_q1 + .lower_ci),
-    upper = transform_fun(intercept_q1 + .upper_ci),
-    group = "Q1 (Most Disadvantaged)"
-  )
-  
-  sm_q5 <- sm_q5 |> dplyr::mutate(
-    est   = transform_fun(intercept_q5 + .estimate),
-    lower = transform_fun(intercept_q5 + .lower_ci),
-    upper = transform_fun(intercept_q5 + .upper_ci),
-    group = "Q5 (Most Advantaged)"
-  )
-  
-  sm <- rbind(sm_q1, sm_q5)
-  
-  # ---- compute mean predicted value per quartile ----
-  mean_q1 <- mean(sm_q1$est, na.rm = TRUE)
-  mean_q5 <- mean(sm_q5$est, na.rm = TRUE)
-  
-  # ---- plot ----
-  p <- ggplot(sm, aes(x = community_severance_index, y = est,
-                      color = group, fill = group)) +
-    geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.15, color = NA) +
-    geom_line(size = 1.2) +
-    
-    # 🟢 NEW: dashed mean-lines using each group's color
-    geom_hline(aes(yintercept = mean_q1, color = "Q1 (Most Disadvantaged)"),
-               linetype = "dashed", linewidth = 1) +
-    geom_hline(aes(yintercept = mean_q5, color = "Q5 (Most Advantaged)"),
-               linetype = "dashed", linewidth = 1) +
-    
-    labs(
-      title = paste(title_lab, "–", ice_var),
-      x = "Community Severance Index",
-      y = y_lab,
-      color = "Group",
-      fill = "Group"
-    ) +
-    theme_bw(base_size = 14) +
-    theme(
-      legend.position = "top",
-      plot.title = element_text(face = "bold")
-    )
-  
-  # --- rug for Q1 --- #
-  if (rug) {
-    p <- p + geom_rug(
-      data = mod_q1$model,
-      aes(x = community_severance_index),
-      inherit.aes = FALSE,
-      sides = "b",
-      alpha = 0.3
-    )
-  }
-  
-  p
-}
-
-res_gen <- function(dt_res = dt_res, mdl = mdl){
-  residuals_df <- data.frame(
-    orig_row_id = as.numeric(rownames(mdl$model)),
-    fitted = fitted(mdl),
-    residual = residuals(mdl, type = "response")
-  )
-  residuals_df
-}
-
-plot_residual_diagnostics <- function(dt_sf,
-                                      resid_var = "residual",
-                                      fitted_var = "fitted",
-                                      k_neighbors = 5,
-                                      title = "Residual Diagnostics") {
-  suppressPackageStartupMessages({
-    library(ggplot2)
-    library(sf)
-    library(spdep)
-    library(dplyr)
-    library(patchwork)
-  })
-  
-  # ---------------------------
-  # 1. Extract residuals + fitted
-  # ---------------------------
-  dt <- dt_sf |> st_drop_geometry()
-  
-  if (!(resid_var %in% names(dt_sf))) stop("Residual variable not found.")
-  if (!(fitted_var %in% names(dt_sf))) stop("Fitted variable not found.")
-  
-  # ---------------------------
-  # 2. Moran's I (polygon safe: uses centroids)
-  # ---------------------------
-  message("Computing spatial weights and Moran's I...")
-  
-  coords <- sf::st_coordinates(sf::st_centroid(dt_sf))
-  
-  nb <- spdep::knn2nb(spdep::knearneigh(coords, k = k_neighbors))
-  lw <- spdep::nb2listw(nb, style = "W")
-  
-  moran_res <- spdep::moran.test(dt_sf[[resid_var]], lw, na.action = na.omit)
-  
-  print(moran_res)
-  
-  # ---------------------------
-  # 3. Plots
-  # ---------------------------
-  
-  # Histogram
-  p1 <- ggplot(dt, aes(x = .data[[resid_var]])) +
-    geom_histogram(bins = 30, fill = "skyblue", color = "black") +
-    labs(title = "Residual Distribution", x = "Residuals", y = "Count") +
-    theme_bw()
-  
-  # Q-Q plot
-  p2 <- ggplot(dt, aes(sample = .data[[resid_var]])) +
-    stat_qq() + stat_qq_line() +
-    labs(title = "Q-Q Plot of Residuals") +
-    theme_bw()
-  
-  # Residuals vs Fitted
-  p3 <- ggplot(dt, aes(x = .data[[fitted_var]], y = .data[[resid_var]])) +
-    geom_point(alpha = 0.5) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
-    labs(title = "Residuals vs Fitted",
-         x = "Fitted Values", y = "Residuals") +
-    theme_bw()
-  
-  # Spatial plot — larger, without grid or lat/lon
-  p4 <- ggplot(dt_sf) +
-    geom_sf(aes(fill = .data[[resid_var]]), color = NA) +
-    scale_fill_gradient2(
-      low = "blue", mid = "white", high = "red",
-      midpoint = 0, name = "Residual"
-    ) +
-    labs(
-      title = "Spatial Distribution of Residuals",
-      subtitle = paste0("Moran's I = ",
-                        round(moran_res$estimate[1], 3),
-                        " (p < ", signif(moran_res$p.value, 3), ")")
-    ) +
-    theme_void() +                      # removes axes + grid
-    theme(
-      legend.position = "right",
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 11)
-    )
-  
-  # ---------------------------
-  # 4. Combine with patchwork
-  # ---------------------------
-combined_plot <-
-    (p1 | p2) /
-    (p3 | p4) +
-    plot_layout(heights = c(1, 2)) +   # << BIGGER MAP
-    plot_annotation(
-      title = title,
-      theme = theme(plot.title = element_text(size = 18, face = "bold"))
-    )
-  
-  combined_plot
 }
 
 # Greenspace Model -------------------------------------------
@@ -1052,7 +434,6 @@ model_gam_mixed_greenspace <- function(
     }
   )
 }
-
 
 # Neighbor-visit count model --------------------------------
 model_gam_mixed_neighbor_visits <- function(
@@ -1150,7 +531,6 @@ model_gam_mixed_neighbor_visits <- function(
   )
 }
 
-
 # Neighbor-visit share model --------------------------------
 model_gam_mixed_neighbor_share <- function(
     data,
@@ -1233,157 +613,6 @@ model_gam_mixed_neighbor_share <- function(
       NULL
     }
   )
-}
-
-
-
-model_gam_mixed_greenspace_old <- function(data, by = "none", include_city = FALSE, ice_cont = NULL) {
-  # Base formula
-  base_formula <- "closest_greenspace ~ s(community_severance_index, fx = FALSE) + 
-                   s(neighborhood, bs = 're') + perc.black + perc.hisp + perc.pov + 
-                   pop_dens + building_density"
-  
-  # Add city if requested or if by == "none"
-  if (include_city || by == "none") {
-    base_formula <- paste(base_formula, "+ city")
-  }
-  
-  # Add tensor product interaction if continuous ICE variable is specified
-  if (!is.null(ice_cont) && ice_cont %in% names(data)) {
-    base_formula <- paste0(base_formula, " + te(community_severance_index, ", ice_cont, ")")
-  }
-  
-  formula <- as.formula(base_formula)
-  
-  # Fit GAM safely
-  tryCatch(
-    mgcv::gam(
-      formula = formula,
-      family  = Gamma(link = "log"),  
-      data    = data,
-      method  = "REML"
-    ),
-    error = function(e) {
-      message("Greenspace model failed: ", e$message)
-      NULL
-    }
-  )
-}
-
-
-coeffs_lme_iqr_exp <- function(mod_name =NULL, mod = mod, dta = dta, var = "community_severance_index"){  
-  q25 <- quantile(dta[,var], na.rm = T, probs = 0.25)
-  q75 <- quantile(dta[,var], na.rm = T, probs = 0.75)
-  iqr <- q75 - q25
-  fixed_effects <- as.data.frame(mixedup::extract_fixed_effects(mod))
-  #intercept <- fixed_effects[which(fixed_effects$term == "XIntercept"),"value"]
-  Beta.fit <- fixed_effects[which(fixed_effects$term == paste0("X",var)),"value"]
-  Beta.se <- fixed_effects[which(fixed_effects$term == paste0("X",var)),"se"]
-  p_value <- fixed_effects[which(fixed_effects$term == paste0("X",var)),"p_value"]
-  Beta.lci <- Beta.fit - 1.96 * Beta.se
-  Beta.uci <- Beta.fit + 1.96 * Beta.se
-  beta <- as.numeric(exp(iqr * Beta.fit))
-  # It means that for each 1 IQR increase in CSI, the average mental health hospitalization increases by 1.32 hospitalizations. 
-  lci <- as.numeric(exp(iqr * Beta.lci))
-  uci <- as.numeric(exp(iqr * Beta.uci))
-  df <- data.frame(mod_name = mod_name, beta = beta, lci = lci, uci = uci, p_value = p_value)
-  return(df)
-}
-
-plot_linear_models <- function(res = res){
-  res %>%
-    dplyr::mutate(model_name = fct_relevel(mh_disorder_nm, 
-                                           rev(c("Adjustment", "Anxiety", "Mood",
-                                                 "Schizophrenia")))) %>%
-    ggplot(aes(x = model_name, y = beta, #color = mh_disorder_nm, shape=mh_disorder_nm,
-               ymin = lci,
-               ymax = uci)) +
-    geom_pointrange(size = 1.25) + theme_bw() +
-    geom_linerange(size = 1.25) + 
-    scale_shape_manual(values=c(1))+
-    scale_color_manual(values=c('#3b7036'))+
-    scale_y_log10(
-      breaks = c(0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5),
-      labels = scales::number_format(accuracy = 0.1)
-    ) +
-    coord_cartesian(ylim = c(0.8, 1.5)) +   # zooms without dropping data
-    geom_hline(yintercept = 1, color = "black", linetype = "dashed") +
-    theme(legend.text = element_text(size=12), legend.title = element_text(size=14),
-          axis.text.y = element_text(hjust = 1, size = 17),
-          axis.text.x = element_text(size = 17), strip.background = element_rect(fill = "white"), 
-          axis.title.x = element_blank(), axis.title.y = element_blank()) + coord_flip() +
-    labs(y = "Estimate", x = "---Mental Health Disorder")
-}
-
-# functions to plot non linear results
-format_pred_mod <- function(pred.csi) {
-  fit.table.csi <- as.data.frame(pred.csi$matRRfit)
-  colnames(fit.table.csi) <- paste0("rr_", colnames(fit.table.csi))
-  fit.table.csi <-fit.table.csi %>% mutate(csi = as.numeric(row.names(fit.table.csi)))
-  # 3d.ii Extract 95% CI
-  lci.table.csi <- as.data.frame(pred.csi$matRRlow)
-  colnames(lci.table.csi) <- paste0("lci_", colnames(lci.table.csi))
-  uci.table.csi <- as.data.frame(pred.csi$matRRhigh)
-  colnames(uci.table.csi) <- paste0("uci_", colnames(uci.table.csi))
-  ## plot
-  plot.csi_mod <- data.frame(fit.table.csi, lci.table.csi, uci.table.csi)
-  names(plot.csi_mod) <- c("pe", "csi", "lci", "uci")
-  return(plot.csi_mod)
-}
-
-# --- Function: plot tensor product smooth in 3D for any GAM ---
-plot_tensor3D_gam <- function(gam_model, smooth_name = NULL, n = 50,
-                              xlab = NULL, ylab = NULL, zlab = "Estimated response",
-                              title = NULL, color_palette = "Viridis") {
-  
-  # --- Step 1: Identify tensor product smooth ---
-  if (is.null(smooth_name)) {
-    t_smooths <- gam_model$smooth %>% purrr::keep(~ inherits(.x, "tensor.smooth"))
-    if (length(t_smooths) == 0) stop("No tensor product smooths found in the model.")
-    smooth_name <- t_smooths[[1]]$label
-  }
-  
-  # --- Step 2: Get smooth estimates ---
-  sm <- smooth_estimates(
-    gam_model,
-    smooth = smooth_name,
-    n = n,
-    partial_match = TRUE
-  )
-  
-  # --- Step 3: Identify the two variables in the tensor ---
-  vars <- names(sm)[!grepl("^\\.", names(sm))]
-  if (length(vars) != 2) stop("Tensor product smooth must have exactly 2 variables.")
-  
-  x_var <- vars[1]
-  y_var <- vars[2]
-  
-  # Ensure variables are numeric
-  sm[[x_var]] <- as.numeric(sm[[x_var]])
-  sm[[y_var]] <- as.numeric(sm[[y_var]])
-  
-  # Pivot to matrix
-  sm_mat <- sm %>%
-    select(all_of(c(x_var, y_var, ".estimate"))) %>%
-    pivot_wider(names_from = all_of(y_var), values_from = ".estimate") %>%
-    arrange(!!sym(x_var))
-  
-  x_vals <- sm_mat[[x_var]]
-  y_vals <- as.numeric(colnames(sm_mat)[-1])
-  z_mat <- as.matrix(sm_mat[,-1])
-  storage.mode(z_mat) <- "double"
-  
-  # --- Step 4: Interactive 3D plot ---
-  plot_ly(x = ~x_vals, y = ~y_vals, z = ~z_mat) %>%
-    add_surface(colorscale = color_palette) %>%
-    layout(
-      scene = list(
-        xaxis = list(title = ifelse(is.null(xlab), x_var, xlab)),
-        yaxis = list(title = ifelse(is.null(ylab), y_var, ylab)),
-        zaxis = list(title = zlab)
-      ),
-      title = ifelse(is.null(title), paste("Tensor product smooth:", smooth_name), title)
-    )
 }
 
 plot_smooth_gam <- function(model_list,
@@ -1569,6 +798,16 @@ plot_city_comparison <- function(model_list, log_y = FALSE, rug = TRUE,
 # stratum, not an unrealistic tract with all covariates equal to zero.
 # Renamed from ice_reference_level() since the underlying computation is
 # not ICE-specific, only its current caller is.
+# Reference level for a GAM(M): the linear predictor evaluated with the CSI
+# smooth and the neighborhood random effect held at their average (zero)
+# contribution, but the other adjustment covariates set to the fitted
+# model's own mean values rather than zero, so the result is the fitted
+# value for a typical tract with mean covariates rather than an
+# unrealistic all-covariates-zero tract.
+#
+# Not currently called by any script or figure — plot_ice_overlay() (Figure 4)
+# plots the centered/ratio-scale smooth directly, with no reference level
+# added back, matching Figures 2/3. Kept as a standalone diagnostic helper.
 gam_reference_level <- function(model) {
   dt <- model$model
   adj_cols <- intersect(
@@ -1714,40 +953,6 @@ plot_ice_overlay <- function(fits_q1, fits_q5,
 
   names(plots) <- cities
   purrr::compact(plots)
-}
-
-
-
-
-plot_pred_mod <- function(mod_dta, ylim_low = 0, ylim_high = 3) {
-  mynamestheme <- theme(
-    plot.title = element_text(family = "Helvetica", hjust = 0.5, size = (18)),
-    axis.title = element_text(family = "Helvetica", size = (22)),
-    axis.text = element_text(family = "Helvetica", size = (18))
-  )
-  
-  p <- ggplot() +
-    geom_rug(aes(x = csi),
-             data = mod_dta,
-             sides = "b", length = grid::unit(0.02, "npc")) +
-    geom_ribbon(aes(ymin = lci, ymax = uci, x = csi), fill = "blue",
-                alpha = 0.2, data = mod_dta) +
-    geom_line(aes(x = csi, y = pe), lwd = 1, data = mod_dta) +
-    geom_hline(yintercept=1, linetype="dashed", color = "grey", size = 1.5) +
-    labs(y = "Schizophrenia Hospitalization RR", x = "Community severance index") +
-    theme_bw() +
-    ylim(ylim_low, ylim_high) +
-    mynamestheme
-  return(p)
-}
-
-get_df <- function(model = NULL){
-  model_gamm <- model[["gam"]]
-  gamm_summary <- summary(model_gamm)
-  s_table <- gamm_summary[["s.table"]]
-  s_table <- as.data.frame(s_table)
-  edf <- s_table$edf[1] 
-  return(edf)
 }
 
 euclidean_to_edge <- function(areal_units = census_tracts,

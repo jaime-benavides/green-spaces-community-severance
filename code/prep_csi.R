@@ -31,19 +31,20 @@ set.seed(36)
 year <- 2019
 geo <- "tract"   # krieger() supports 'tract' and 'county' (not 'block group')
 
-city_boundaries_path <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/data/demography/us/urban/500Cities_City_11082016/"
+# CDC 500 Cities city boundaries — see README.md "Data" > "demography" for download link
+city_boundaries_path <- paste0(raw.data.folder, "demography/500Cities_City_11082016/")
 city_boundaries <- sf::read_sf(paste0(city_boundaries_path, "CityBoundaries.shp")) %>%
   sf::st_transform(crs)
 
 spatial_context <- city_boundaries[which(city_boundaries$NAME == "Los Angeles"   |  city_boundaries$NAME == "New York"),]
 
-dta_csi_la_cbg <- readRDS(paste0("/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/workspace/community_severance_us/data/generated/", "csi_scores_la.rds"))
+dta_csi_la_cbg <- readRDS(paste0(raw.data.folder, "csi/csi_scores_la.rds"))
 colnames(dta_csi_la_cbg)[which(colnames(dta_csi_la_cbg) == "MR1")] <- "community_severance_index"
-#dta_path_nyc <- "/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/workspace/community_severance_nyc/data/generated/"
 file_name_nyc <- "csi_scores_nyc.rds"
-dta_csi_nyc_cbg <- readRDS(paste0(generated.data.folder, "csi_scores_nyc.rds"))
+dta_csi_nyc_cbg <- readRDS(paste0(raw.data.folder, "csi/csi_scores_nyc.rds"))
 colnames(dta_csi_nyc_cbg)[which(colnames(dta_csi_nyc_cbg) == "MR1")] <- "community_severance_index"
-sld_us <- sf::read_sf(paste0("/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/workspace/community_severance_us/data/raw/", "geometry/","SmartLocationDatabaseV3/", "SmartLocationDatabase.gdb"))
+# EPA Smart Location Database — see README.md "Data" > "demography" for download link
+sld_us <- sf::read_sf(paste0(raw.data.folder, "demography/SmartLocationDatabaseV3/SmartLocationDatabase.gdb"))
 sld_us_loc <- sld_us
 sf::st_geometry(sld_us_loc) <- NULL
 sld_us_loc_nyc <- sld_us_loc[which(sld_us_loc$GEOID20 %in% unique(dta_csi_nyc_cbg$GEOID20)),]
@@ -209,7 +210,8 @@ la_dt <- dplyr::left_join(la_ice[,"GEOID"], la_csi_outl[,c("GEOID", "community_s
 
 # lets add roads
 
-faf5_network <- sf::read_sf(paste0("/Volumes/Extreme SSD/laptop_back_up/maklab/scratch/workspace/community_severance_us/data/raw/", "geometry/FAF5Network.gdb"))
+# ORNL Freight Analysis Framework (FAF5) road network — see README.md "Data" > "geometry" for download link
+faf5_network <- sf::read_sf(paste0(raw.data.folder, "geometry/FAF5Network.gdb"))
 faf5_highways <- faf5_network[which(faf5_network$F_Class %in% c(1,2,3)),]
 faf5_highways <- faf5_highways %>%
   sf::st_transform(crs)

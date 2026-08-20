@@ -21,8 +21,8 @@ library(readr)
 #          not a single model with an interaction term. For each model, the
 #          fitted value at a given CSI is intercept + s(CSI), with all other
 #          covariates held at their stratum-specific means (rather than
-#          zero), matching the convention used for Figure 4 / fig:ice_combined
-#          (see gam_reference_level() and plot_ice_overlay() in functions.R):
+#          zero; this stratum-mean-covariate convention is reimplemented
+#          inline below via build_template()/extract_intercept_csi_lpblock()):
 #          a zero-covariate tract is an unrealistic reference point, so the
 #          model intercept is replaced with intercept + covariate effects
 #          evaluated at the stratum's mean covariate values, added to the
@@ -37,6 +37,17 @@ library(readr)
 #          than within-model) contrast.
 #
 # Output:  output/numeric_results_ice_effect_modification.csv
+#
+# Status:  Diagnostic only. This script's output is not cited by any number
+#          in the manuscript and does not feed any manuscript figure — the
+#          Q1-vs-Q5 comparison it computes (a baseline-level gap between two
+#          independently fit models) is not part of the study design. The
+#          manuscript's Secondary analysis reports effect modification via
+#          extract_ice_effect_modification_difference_contrasts.R instead
+#          (a Q5-vs-Q1 contrast of each stratum's own CSI-quartile effect,
+#          not a baseline-level gap). Figure 4 (plot_ice_overlay() in
+#          functions.R) uses the same centered/ratio-scale transform as
+#          Figures 2/3, not this script's stratum-mean-covariate convention.
 # =============================================================================
 
 

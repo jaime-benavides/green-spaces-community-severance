@@ -1,5 +1,11 @@
-# Data (proprietary or too large for GitHub)
-data/
+# Data (proprietary, third-party licensed, or too large for GitHub — see
+# README.md "Data" section for download links). Folder structure and
+# PROVENANCE.md docs are tracked so contributors know where to place
+# downloaded files; actual data content is ignored.
+data/**
+!data/**/
+!data/**/PROVENANCE.md
+!data/**/.gitkeep
 output/
 OSMtrees.gpkg
 
