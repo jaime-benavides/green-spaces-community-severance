@@ -232,10 +232,7 @@ source("code/02_prep_csi.R")
 
 **Script:** `code/03_prep_greenspace.R`  
 **Requires:** NDVI CSV (`NDVI_US_MajorCities_Tracts_2000_2010_2019.csv`); PAD-US AR shapefile; population-weighted centroid text files (Census Bureau).  
-**What it does:**
-- Joins pre-computed tract-level NDVI values (Landsat 2019) to census tract geometries.
-- Computes Euclidean distance from each tract's population-weighted centroid to the **edge** of the nearest PAD-US AR public green space polygon. Only green spaces ≥ 400 m². 10 km buffer beyond city boundaries to catch nearby parks.
-- 94 tracts (LA = 28, NYC = 66) with centroid **inside** a green space get distance = 0 (`inside_flag`). Recoded to 1 m before Gamma model fitting.
+**What it does:** Joins tract-level NDVI (Landsat 2019) to tract geometries; computes Euclidean distance from each tract's population-weighted centroid to the nearest PAD-US AR green space edge (≥ 400 m², 10 km buffer).
 
 **Outputs written to `data/generated/`:**
 - `ndvi_nyc_census_tract.rds`, `ndvi_la_census_tract.rds`
@@ -268,15 +265,7 @@ source("code/04_prep_building_density.R")
 
 **Script:** `code/05_models_linear.R`  
 **Requires:** Neighborhood boundary shapefiles; outputs from Steps 1–4.  
-**What it does:**
-1. Spatially joins tracts to neighborhood boundaries (NYC: UHF42; LA: Community Plan Areas) by largest-intersection-area. Neighborhood = random intercept in all GAMs.
-2. Strips leading `0` from raw 11-digit LA GEOIDs (`substring(la_csi$GEOID, 2)`) → 10-character GEOIDs used through the join chain. NH workflow restores to 11 digits via `pad_geoid(..., 11)` before joining.
-3. Assigns ICE quintiles via `ntile()` within each city (`group_by(city)`), so Q1/Q5 are city-specific.
-4. Flags outlier tracts where `|z_csi| > 2`, city-specific z-scores. Excluded in crude sensitivity models (Figs S3a/S3b), matching primary/adjusted models (Figs 2, 3). Full-sample sensitivity models (Figs S4a/S4b) include outliers by design.
-5. Saves combined modeling dataset as `data_models.rds` **before** any recoding.
-6. Recodes `closest_greenspace == 0` to 1 metre (for 94 tracts, LA = 28 / NYC = 66, whose centroid is inside a green space polygon) before fitting Gamma models.
-7. Fits all NDVI (Gaussian, identity link) and proximity (Gamma, log link) GAMs, including crude, adjusted, outlier-excluded, by-city, and ICE-stratified specifications.
-8. Saves city-specific model objects for use by `08c_extract_numeric_results.R`.
+**What it does:** Joins tracts to neighborhood boundaries, flags outlier tracts (`|z_CSI| > 2`, city-specific), saves `data_models.rds`, fits NDVI (Gaussian) and proximity (Gamma) GAMs across crude/adjusted/outlier-excluded/ICE-stratified specifications.
 
 **Model specifications:**
 
@@ -314,24 +303,7 @@ source("code/05_models_linear.R")
 
 **Script:** `code/05b_prep_cbg_nh_combined.R`  
 **Requires:** Two archival CBG-level CSV files from the `dewey_dta_walking` project, copied into `data/raw/neigh_home/` (see PROVENANCE.md there).  
-**What it does:**
-
-Advan Research neighboring-home data came from two separate pipeline runs, both in `dewey_dta_walking`:
-
-| Source | File | CBGs | Tracts | Notes |
-|--------|------|------|--------|-------|
-| Primary | `2019_full_year_neighbor_home_nyc_la_annual_average.csv` | 15,483 | 5,434 | Main Advan Neighborhood Patterns Plus run; has `city` column |
-| Supplementary | `2019_full_year_neighbor_home_supplementary_annual_average.csv` | 949 | 258 | Second run, covers tracts absent from primary; `city` column NA (inferred from state FIPS) |
-
-Zero CBG overlap between sources, by design. Script harmonizes column names, infers `city` for the supplementary source from state FIPS (06xxx → LA, 36xxx → NYC), keeps `months_present` for downstream filtering, writes merged file to:
-
-```
-data/raw/neigh_home/2019_full_year_neighbor_home_nyc_la_cbg_combined.csv
-```
-
-Key columns kept: `GEOID_CBG` (12-digit), `TRACT_GEOID` (11-digit), `city`, `nh_source`, `months_present`, `avg_neighbor_home_device_counts`, `avg_home_device_counts_total_parsed`, `avg_device_counts_row_total`.
-
-Single canonical CBG-level input for all downstream NH processing. Step 6 always reads from it.
+**What it does:** Merges the primary and supplementary Advan CBG-level NH files (zero CBG overlap) into one canonical file, `data/raw/neigh_home/2019_full_year_neighbor_home_nyc_la_cbg_combined.csv`, which Step 6 always reads from.
 
 **Run:**
 ```r
@@ -344,24 +316,7 @@ source("code/05b_prep_cbg_nh_combined.R")
 
 **Script:** `code/06_prep_neighbor_visits_annual_average.R`  
 **Requires:** `data/raw/neigh_home/2019_full_year_neighbor_home_nyc_la_cbg_combined.csv` from Step 5b; `data_models.rds` from Step 5; PAD-US AR shapefile; `krieger_ice_{nyc,la}.rds` (already in `data/generated/`).  
-**What it does:**
-
-Neighboring-home (NH) metric: for each destination tract, device visits from homes within 0.5 miles (804 m), restricted to destination CBGs containing publicly accessible green space (PAD-US AR). Aligns the behavioral metric with green space use rather than general local mobility.
-
-**CBG inclusion criteria (both must hold):**
-1. `months_present == 12` — full-year coverage
-2. CBG geometry intersects at least one PAD-US AR polygon — destination has accessible green space
-
-**Aggregation to tract level** (sum from qualifying CBGs):
-- `neighbor_visit_count_annual_avg` = Σ `avg_neighbor_home_device_counts`
-- `home_device_counts_total_parsed_annual_avg` = Σ `avg_home_device_counts_total_parsed`
-- `device_counts_row_total_annual_avg` = Σ `avg_device_counts_row_total`
-
-Outcome and model offset (`log(home_device_counts_total_parsed_annual_avg)`) both computed from the same set of green-space CBGs, so models run unchanged.
-
-**Tract inclusion:** tract enters the NH analytic sample only if ≥1 constituent CBG meets both criteria (`has_greenspace_tract == TRUE`). Tracts with no qualifying CBGs get `NA` on the outcome, excluded by the complete-case filter in Step 7.
-
-Script downloads 2019 TIGER CBG geometries via `tigris` (cached), intersects with the PAD-US AR shapefile, joins the green-space flag to NH data before aggregating.
+**What it does:** Aggregates device visits from homes within 0.5 miles to tract level, restricted to CBGs with full-year coverage that contain accessible green space (PAD-US AR intersection).
 
 **Outputs written to `data/generated/`:**
 - `data_models_neighbor_visits_annual_average_2019_full_year.rds` — full modeling dataset joined with NH metrics and `has_greenspace_tract` flag
@@ -378,7 +333,7 @@ source("code/06_prep_neighbor_visits_annual_average.R")
 
 **Script:** `code/07_models_neighbor_visits_annual_average.R`  
 **Requires:** `data_models_neighbor_visits_annual_average_2019_full_year.rds` from Step 6.  
-**What it does:** Fits GAMs for the NH outcome separately by city. Three model variants plus ICE-stratified models are fit:
+**What it does:** Fits negative binomial GAMs for the NH outcome by city, across primary/crude/fallback-offset/ICE-stratified variants.
 
 | Model | Outcome | Family | Offset | Purpose |
 |-------|---------|--------|--------|---------|
@@ -425,7 +380,7 @@ source("code/07_models_neighbor_visits_annual_average.R")
 
 **Script:** `code/07b_generate_nh_ice_q1_q5_figure.R`  
 **Requires:** `data_models_neighbor_visits_annual_average_2019_full_year.rds` from Step 6.  
-**What it does:** Fits city-specific negative binomial GAMs for NH outcome, separately for Q1 (most disadvantaged) and Q5 (most advantaged) ICE income quintiles, via `split(data, city)` + `lapply` (not `fit_by()`, doesn't forward offset). Saves model objects, generates combined figure.
+**What it does:** Fits city-specific negative binomial GAMs for the NH outcome, ICE Q1 vs. Q5, and generates the combined figure.
 
 **Outputs:**
 - `data/generated/neighbor_visit_ice_q1_q5_fit_2019_full_year.rds` — model objects
@@ -442,13 +397,7 @@ source("code/07b_generate_nh_ice_q1_q5_figure.R")
 
 **Script:** `code/07c_generate_linear_ice_outl_figures.R`  
 **Requires:** `data_models.rds` from Step 5.  
-**What it does:** Re-fits five groups of models from saved datasets, all with city-specific outlier exclusion (|z_CSI| > 2):
-1. NDVI GAMs, ICE Q1/Q5 tracts by city (outlier-excluded within each stratum) → .rds for **Fig 4** (middle row, via Step 7e)
-2. Proximity Gamma GAMs, ICE Q1/Q5 tracts by city (outlier-excluded) → .rds for **Fig 4** (bottom row, via Step 7e)
-3. NDVI + proximity GAMs, outliers excluded → .rds for **Fig 3** (combined: top NDVI, bottom proximity, via Step 7e)
-4. NH negative binomial GAMs, outliers excluded → **Fig 2** (primary NH figure)
-
-Fig 2 uses `plot_city_comparison()` directly. ICE .rds (1–2) consumed by Step 7e's `plot_ice_overlay()`. NDVI/proximity .rds (3) consumed by Step 7e's `plot_city_comparison()`.
+**What it does:** Re-fits NDVI, proximity, and NH models with city-specific outlier exclusion (`|z_CSI| > 2`), overall and by ICE Q1/Q5, producing the model objects behind Figs 2–4.
 
 **Outputs:**
 - `data/generated/ndvi_ice_q1_q5_fit.rds`, `data/generated/greenspace_ice_q1_q5_fit.rds`
@@ -466,12 +415,7 @@ Fig 2 uses `plot_city_comparison()` directly. ICE .rds (1–2) consumed by Step 
 
 **Script:** `code/07e_regenerate_manuscript_figures.R`  
 **Requires:** All `data/generated/*.rds` model objects from Steps 5, 7, 7c.  
-**What it does:** Loads saved model objects, regenerates all 7 main + supplementary smooth figures.
-- Figs 2, 3, S4, S5: `plot_city_comparison()` — shared y-axis, log scale where appropriate, city-name titles per panel, no right y-label.
-- Fig 4: `plot_ice_overlay()` — overlays Q1 (red) and Q5 (blue) on one panel. Each stratum's curve is the model's centered CSI smooth, same conditional-association scale as `plot_smooth_gam()`/`plot_city_comparison()`, no stratum intercept added back. `make_ice_row()`'s `log_y` argument: `TRUE` for NH and proximity, `FALSE` for NDVI (matches each outcome's Fig 2/3 setting). Shared y-axis per row via `compute_shared_ylim()` (same helper as Figs 2/3). Centered/ratio-scale convention matches prior GAM-curve papers (`gratia::draw(mod, fun = exp)`, no intercept) — see `manuscript/writing_style_guide.md` §5.
-- `plot_ice_overlay()` suppresses per-panel legend (`legend.position = "none"`); script extracts one shared legend via `cowplot::get_legend()` from a reference panel (source panel's `legend.position` must be `"right"`, not `"top"` — `"top"` silently returns an empty guide-box in this cowplot/ggplot2 combination), places it above the three stacked rows via `patchwork::wrap_elements()`.
-- NDVI+proximity figures: 2-row patchwork (1400×1200 px). Fig 4: 4-row patchwork incl. legend row (1400×1800 px).
-- Copies all regenerated figures to `manuscript/figs/`. Use whenever figure styling changes — avoids re-fitting models.
+**What it does:** Loads saved model objects and regenerates all manuscript smooth figures (Figs 2–4, S4, S5) without re-fitting; copies output to `manuscript/figs/`.
 
 **Figures regenerated:**
 
@@ -496,15 +440,7 @@ source("code/07e_regenerate_manuscript_figures.R")
 
 **Script:** `code/07d_generate_figure1_maps.R`  
 **Requires:** `krieger_ice_nyc.rds`, `krieger_ice_la.rds`, `city_boundary_nyc.rds`, `city_boundary_la.rds`, `community_severance_nyc/la_census_tract.rds`, `data_models_neighbor_visits_annual_average_2019_full_year.rds`, `data_models.rds` (all already in `data/generated/`). City boundary files saved from the 500 Cities shapefile on first run; regenerate only if study area changes.  
-**What it does:** Loads tract sf geometry from krieger ICE files, clips to 500 Cities city boundary polygons (`city_boundary_{nyc,la}.rds`) via `sf::st_intersection()` — land portions only — joins outcome/exposure/covariate data, produces:
-- **Figure 1** (`ggplot2`/`patchwork`): 2-row × 4-column grid — row 1 LA, row 2 NYC; columns: NH visit rate (NH analytic sample only), NDVI, distance to nearest green space, CSI. Single shared decile-percentage legend ("0%–10%"…"90%–100%", one purple palette across all four variables) above the grid; column headers and row labels each printed once. Decile ranks computed within-city, per variable, via `dplyr::ntile()`. `coord_sf()` doesn't support `facet_grid(scales = "free")` (shared coordinate scale would collapse LA/NYC — ~44° apart — to specks), so each panel is its own `ggplot`+`geom_sf`, assembled with `patchwork::wrap_plots()`; shared legend extracted once via `cowplot::get_legend()`.
-- **Supplementary Fig S1:** panel (a) continuous ICE, panel (b) ICE Q1/Q5 categorical (most deprived = red, Q2–Q4 = gray, most advantaged = blue), stacked under one caption.
-
-`save_supp_map()` and the ICE-map panel-b block build LA first, then NYC — matches every "Left: LA; right: NYC" caption.
-
-NDVI and distance-to-green-space spatial maps aren't generated separately — Figure 1 already maps both (columns 2–3), decile-shaded rather than quantile-value-labeled.
-
-Non-Figure-1 maps: within-city quantile (decile) breaks (`tm_scale_intervals(n=10, style="quantile")`), actual value ranges in legend (no D1–D10 labels). NA tracts rendered transparent. Color scales: YlGn = NDVI, Blues = proximity, RdBu = ICE continuous, tricolor (red/gray/blue) = ICE Q1/Q5 categorical.
+**What it does:** Clips tract geometry to city boundaries and produces Figure 1 (NH, NDVI, distance, CSI decile maps by city) and Supplementary Fig S1 (ICE continuous + Q1/Q5 maps).
 
 **GEOID notes:**
 - `krieger_ice_la$GEOID`: 11-digit (leading `0` present, e.g., `"06037199800"`)
@@ -530,9 +466,7 @@ source("code/07d_generate_figure1_maps.R")
 
 **Script:** `code/08a_table1_outcome_descriptives_neighbor_visits.R`  
 **Requires:** `data_models_neighbor_visits_annual_average_2019_full_year.rds`  
-**What it does:** Formatted LaTeX table, descriptive statistics (median [P25, P75]) by city (NYC, LA): three outcomes (NDVI, distance to green space, NH visit count), CSI (Exposure), six covariates (% Black, % Hispanic, % poverty, population density, building density, ICE). Missing-data variables get a lettered footnote (a–g) with count and, for NH visits/NDVI, the reason for exclusion.
-
-Booktabs formatting (`\toprule`, `\midrule`, `\bottomrule`); included in the manuscript via `\input{}`.
+**What it does:** Generates Table 1 — descriptive statistics (median [P25, P75]) by city for outcomes, CSI, and covariates.
 
 **Outputs written to `output/`:**
 - `table1_descriptives_2019_full_year.tex`
@@ -548,9 +482,7 @@ source("code/08a_table1_outcome_descriptives_neighbor_visits.R")
 
 **Script:** `code/08b2_generate_supp_table_nh_missingness.R`  
 **Requires:** `data_models_neighbor_visits_annual_average_2019_full_year.rds`  
-**What it does:** Supplementary Table S1: compares tracts excluded from the NH analytic sample vs. the 2,018-tract analytic sample. Excluded if no destination CBG intersects a PAD-US AR polygon with 12 months complete data (N = 1,294 tracts). Within the 2,018-tract sample, NH GAMs actually fit on 1,963 tracts (LA = 542, NYC = 1,421) after `complete.cases()` on modeling covariates — 55 tracts (2.7%; LA = 22, NYC = 33) further excluded for missing covariate data (most commonly missing CSI, 48 tracts, or race/ethnicity/poverty, 36 tracts each), predominantly non-residential areas with near-zero building density (median 0.009 vs. 0.245 among retained). Reports median (IQR) for continuous, N (%) for categorical.
-
-**Table path:** `output/supp_table_nh_missingness.tex`, copied to `manuscript/tables/supp_table_nh_missingness.tex`. Included in the manuscript via `\input{tables/supp_table_nh_missingness.tex}`.
+**What it does:** Generates Supplementary Table S1 — comparison of tracts excluded from the NH analytic sample vs. tracts retained.
 
 **Outputs written to `output/` and `manuscript/tables/`:**
 - `supp_table_nh_missingness.tex`
@@ -566,7 +498,7 @@ source("code/08b2_generate_supp_table_nh_missingness.R")
 
 **Script:** `code/08c_extract_numeric_results.R`  
 **Requires:** Model objects from Steps 5 and 7; `data_models.rds`.  
-**What it does:** Computes the Q25-to-Q75 quartile contrast — the quantity cited in the manuscript Results, Abstract, and Table S2 — writes to `output/numeric_results_quartile_contrasts.csv`.
+**What it does:** Computes the Q25-to-Q75 quartile contrast — the effect estimate cited throughout the manuscript.
 
 **Output (used by the manuscript): `output/numeric_results_quartile_contrasts.csv`**
 Computed by `compute_quartile_contrasts()` (mirrors `main_anchored_quartile_contrasts.R` in `bne_uncertainty_ses_multiyear`). For each outcome × city: `mgcv::predict.gam(..., type = "lpmatrix")` contrast between CSI at city-specific Q25/Q50/Q75 (covariates fixed at city means, random effect cancels by construction), delta-method uncertainty on the CSI smooth's vcov submatrix. Three contrasts per outcome × city: `Q50_vs_Q25`, `Q75_vs_Q25`, `Q75_vs_Q50`. Source of Table S2 (`supp_table_s2_per_iqr.tex`) and every Q25-to-Q75 number in Results §3.2–3.3 and Discussion. RR/ratio values rounded to 2 dp in text and Table S2 (CI bounds too); NDVI absolute-difference stays at 3 dp — see `manuscript/writing_style_guide.md` §4.
@@ -590,7 +522,7 @@ source("code/08c_extract_numeric_results.R")
 
 **Script:** `code/08d_extract_outlier_exclusion_counts.R`  
 **Requires:** `data_models.rds`; `data_models_neighbor_visits_annual_average_2019_full_year.rds`.  
-**What it does:** Per city and outcome, counts census tracts excluded from the primary (adjusted, outlier-excluded) analytic samples by the `|z_CSI| > 2` (city-specific) rule stated in the manuscript's Statistical analysis subsection. Replicates the same city-specific z-score exclusion logic as `07c_generate_linear_ice_outl_figures.R` (Figs 2, 3) and `05_models_linear.R`, applied separately per outcome so missingness differences across outcomes show up in the counts rather than assuming one shared exclusion count.
+**What it does:** Counts tracts excluded per city and outcome by the `|z_CSI| > 2` outlier rule used in the primary analytic samples.
 
 **Output: `output/numeric_results_outlier_exclusion_counts.csv`**
 
@@ -613,7 +545,7 @@ source("code/08d_extract_outlier_exclusion_counts.R")
 
 **Script:** `code/08e_extract_tract_area_by_city.R`  
 **Requires:** `data/generated/krieger_ice_la.rds`; `data/generated/krieger_ice_nyc.rds`.  
-**What it does:** Median (IQR) census tract land area, by city, from `sf::st_area()` on the tract geometries used to build the ICE indices. Context for the Results-section comparison of median distance to nearest green space (LA 435 m vs. NYC 182 m): LA tracts are markedly larger, so part of the absolute-distance gap is mechanical (a fixed point feature is, on average, farther from the population-weighted centroid of a larger tract), not purely differential accessibility.
+**What it does:** Computes median (IQR) census tract land area by city.
 
 **Output: `output/numeric_results_tract_area_by_city.csv`**
 
@@ -635,9 +567,7 @@ source("code/08e_extract_tract_area_by_city.R")
 
 **Script:** `code/08f_generate_supp_table_outlier_geography.R`  
 **Requires:** `data/generated/data_models.rds`; `data/generated/krieger_ice_la.rds`; `data/generated/krieger_ice_nyc.rds`.  
-**What it does:** Compares tract area, population density, building density, and CSI between tracts excluded by the primary `|z_CSI| > 2` outlier rule and tracts retained, by city. Answers whether outlier-excluded tracts (driving the non-linearity in the full-sample sensitivity analysis, Fig S4) have distinguishing geographic characteristics. Distance to city boundary deliberately excluded — sensitive to which tracts define the city union polygon, not a stable number.
-
-`|z_CSI| > 2` flags both distribution tails. LA's outliers are all high-CSI (z > 2); NYC splits into high-CSI (z > 2, n = 57) and low-CSI (z < -2, n = 41) groups with materially different area/density profiles, so NYC gets separate columns rather than one pooled "outlier" column.
+**What it does:** Compares tract area, density, and CSI between outlier-excluded (`|z_CSI| > 2`) and retained tracts, by city.
 
 **Output: `output/supp_table_outlier_geography.tex`** (copied to `manuscript/tables/supp_table_outlier_geography.tex`)
 
