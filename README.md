@@ -1,9 +1,7 @@
 # green_spaces_community_severance
-Repository for reviewing the code of the project Community Severance and Green Space Accessibility in New York City and Los Angeles
+Code repository for the project Community Severance and Green Space Accessibility in New York City and Los Angeles
 
 note: please run init_directory_structure.R first to create folders. Also run this script before doing anything else, currently done via source(paste0(project.folder,'init_directory_structure.R'), to ensure that the folder locations are known in each script
-
-See `CODE_REVIEW.md` for the full step-by-step reproduction guide, including a manuscript-section-to-code cross-reference table and diagnostic-only scripts not part of the manuscript pipeline.
 
 ## Code and data generated (file name - short description)
 
